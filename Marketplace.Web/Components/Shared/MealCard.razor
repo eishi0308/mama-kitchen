@@ -36,7 +36,7 @@
         {
             <button type="button" class="meal-card-fav" title="@(IsFavorite ? "Remove from saved" : "Save")"
                     @onclick="ToggleFavorite" @onclick:stopPropagation="true">
-                @(IsFavorite ? "❤️" : "🤍")
+                <Icon Name="heart" Size="16" Filled="IsFavorite" Class="@(IsFavorite ? "fav-icon-active" : "fav-icon")" />
             </button>
         }
     </div>
@@ -50,12 +50,12 @@
             <span>@Drop.Seller?.Avatar @Drop.Seller?.Name</span>
             @if (Drop.Seller?.SellerProfile?.RatingAverage is decimal r)
             {
-                <span>· ★ @r.ToString("0.0")</span>
+                <span class="d-inline-flex align-items-center gap-1">· <Icon Name="star" Size="12" Filled="true" Class="star-icon" /> @r.ToString("0.0")</span>
             }
             <span>· @DistanceLabel()</span>
         </div>
         <div class="pickup-window mt-1">
-            🕒 Pickup @Drop.PickupWindowStart.ToLocalTime().ToString("h:mm tt")–@Drop.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")
+            <Icon Name="clock" Size="14" /> Pickup @Drop.PickupWindowStart.ToLocalTime().ToString("h:mm tt")–@Drop.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")
         </div>
     </div>
 </div>

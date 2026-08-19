@@ -21,8 +21,8 @@
     <button class="chip @(IsChipActive(FilterChip.All) ? "active" : "")" @onclick="() => SetChip(FilterChip.All)">All</button>
     <button class="chip @(IsChipActive(FilterChip.UnderFifteen) ? "active" : "")" @onclick="() => SetChip(FilterChip.UnderFifteen)">Under $15</button>
     <button class="chip @(IsChipActive(FilterChip.ReadySoon) ? "active" : "")" @onclick="() => SetChip(FilterChip.ReadySoon)">Ready soon</button>
-    <button class="chip @(IsChipActive(FilterChip.Vegetarian) ? "active" : "")" @onclick="() => SetChip(FilterChip.Vegetarian)">🌱 Vegetarian</button>
-    <button class="chip @(IsChipActive(FilterChip.Halal) ? "active" : "")" @onclick="() => SetChip(FilterChip.Halal)">☪️ Halal</button>
+    <button class="chip d-inline-flex align-items-center gap-1 @(IsChipActive(FilterChip.Vegetarian) ? "active" : "")" @onclick="() => SetChip(FilterChip.Vegetarian)"><Icon Name="leaf" Size="14" /> Vegetarian</button>
+    <button class="chip @(IsChipActive(FilterChip.Halal) ? "active" : "")" @onclick="() => SetChip(FilterChip.Halal)">Halal</button>
     @foreach (var c in _categories)
     {
         <button class="chip @(_categoryId == c.Id ? "active" : "")" @onclick="() => ToggleCategory(c.Id)">@c.Icon @c.Name</button>
@@ -45,7 +45,7 @@
 else if (_drops.Count == 0)
 {
     <div class="empty-state">
-        <div class="empty-state-emoji">🍽️</div>
+        <div class="empty-state-icon"><Icon Name="fork-knife" Size="26" /></div>
         <h3>Nothing nearby tonight — yet.</h3>
         <p>We're still growing in your area. Try widening your search, or check back soon.</p>
         <div class="d-flex justify-content-center gap-2 flex-wrap mt-3">

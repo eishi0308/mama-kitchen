@@ -13,7 +13,7 @@
 else if (_loaded && _order is null)
 {
     <div class="empty-state">
-        <div class="empty-state-emoji">🔍</div>
+        <div class="empty-state-icon"><Icon Name="magnifying-glass" Size="26" /></div>
         <h3>Order not found</h3>
         <p>Either it doesn't exist, or it's not one of yours.</p>
     </div>
@@ -33,7 +33,7 @@ else
             @switch (order.Status)
             {
                 case OrderStatus.Confirmed or OrderStatus.Preparing:
-                    <h1 style="font-size:var(--fs-xl);">Confirmed ✓</h1>
+                    <h1 class="page-title" style="font-size:var(--fs-xl);"><Icon Name="check-circle" Size="22" Class="status-icon-success" /> Confirmed</h1>
                     <p class="text-muted">@order.FoodDrop?.Seller?.Name is preparing your meal.</p>
                     break;
                 case OrderStatus.Ready:
@@ -41,7 +41,7 @@ else
                     <p class="text-muted">Head over any time in your pickup window.</p>
                     break;
                 case OrderStatus.Collected:
-                    <h1 style="font-size:var(--fs-xl);">Collected ✓</h1>
+                    <h1 class="page-title" style="font-size:var(--fs-xl);"><Icon Name="check-circle" Size="22" Class="status-icon-success" /> Collected</h1>
                     <p class="text-muted">Enjoy your meal!</p>
                     break;
                 default:

@@ -92,13 +92,19 @@ else
                 <div class="d-flex align-items-center gap-2">
                     <span style="font-size:1.8rem;">@_drop.Seller?.Avatar</span>
                     <div class="flex-grow-1">
-                        <div class="fw-bold">@_drop.Seller?.Name @VerifiedCheck()</div>
+                        <div class="fw-bold d-inline-flex align-items-center gap-1">
+                            @_drop.Seller?.Name
+                            @if (_drop.Seller?.SellerProfile?.VerificationStatus == VerificationStatus.Verified)
+                            {
+                                <Icon Name="check-circle" Size="15" Class="verified-icon" />
+                            }
+                        </div>
                         <div class="text-muted small">@_drop.Seller?.SellerProfile?.Cuisine · @_drop.Seller?.SellerProfile?.Suburb</div>
                     </div>
                     <div class="text-end">
                         @if (_drop.Seller?.SellerProfile?.RatingAverage is decimal r)
                         {
-                            <div class="fw-bold">★ @r.ToString("0.0")</div>
+                            <div class="fw-bold d-inline-flex align-items-center gap-1"><Icon Name="star" Size="14" Filled="true" Class="star-icon" /> @r.ToString("0.0")</div>
                             <div class="text-muted small">@_drop.Seller.SellerProfile.CompletedOrders orders</div>
                         }
                         else
@@ -141,8 +147,8 @@ else
                 </p>
 
                 <div class="btn-sticky-cta d-flex gap-2">
-                    <button class="btn btn-outline-warning" style="min-width:44px;" @onclick="ToggleFavorite" title="Save">
-                        @(_isFavorite ? "❤️" : "🤍")
+                    <button class="btn btn-outline-warning d-flex align-items-center justify-content-center" style="min-width:44px;" @onclick="ToggleFavorite" title="Save">
+                        <Icon Name="heart" Size="18" Filled="_isFavorite" />
                     </button>
                     <button class="btn btn-primary flex-grow-1" style="font-size:var(--fs-md);" disabled="@(closed || soldOut)" @onclick="GoToCheckout">
                         @if (soldOut)
@@ -241,8 +247,6 @@ else
         return km < 1 ? $"{km * 1000:0} m away" : $"{km:0.0} km away";
     }
 
-    private string VerifiedCheck() =>
-        _drop?.Seller?.SellerProfile?.VerificationStatus == VerificationStatus.Verified ? "✓" : "";
 
     private IEnumerable<string> DietaryLabels()
     {

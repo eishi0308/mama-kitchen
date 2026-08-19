@@ -72,7 +72,7 @@ else
                     <text>Confirming payment…</text>
                     break;
                 case CheckoutState.Succeeded:
-                    <text>Reserved ✓</text>
+                    <Icon Name="check-circle" Size="18" Class="me-2" Filled="false" /><text>Reserved</text>
                     break;
                 default:
                     <text>Reserve &amp; Pay</text>
@@ -80,7 +80,9 @@ else
             }
         </button>
 
-        <p class="text-muted small text-center mt-2 mb-0">🔒 Payment protected — held securely until your order is fulfilled.</p>
+        <p class="text-muted small text-center mt-2 mb-0 d-flex align-items-center justify-content-center gap-1">
+            <Icon Name="lock" Size="14" /> Payment protected — held securely until your order is fulfilled.
+        </p>
     </div>
 }
 

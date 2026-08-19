@@ -25,6 +25,17 @@
     font-family: var(--font-display);
     font-size: 1.2rem;
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.brand-mark {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: var(--color-primary);
+    flex: 0 0 auto;
 }
 
 .current-user-chip {
@@ -64,12 +75,18 @@
         height: 2.9rem;
         display: flex;
         align-items: center;
+        gap: 0.65rem;
         line-height: 2.9rem;
         width: 100%;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         transition: background var(--duration-micro) var(--ease-standard), color var(--duration-micro) var(--ease-standard);
+    }
+
+    .nav-item ::deep .nav-icon {
+        flex: 0 0 auto;
+        opacity: 0.9;
     }
 
 .nav-item ::deep a.active {
@@ -126,7 +143,6 @@
     }
 
     .bottom-nav-icon {
-        font-size: 1.3rem;
         transition: transform var(--duration-micro) var(--ease-spring);
     }
 

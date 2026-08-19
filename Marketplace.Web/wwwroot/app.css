@@ -205,7 +205,9 @@ textarea:focus-visible,
 .badge-verified { background: var(--color-accent-tint); color: var(--color-accent); }
 .badge-sold-out { background: var(--color-border); color: var(--color-text-muted); }
 .badge-success { background: var(--color-success-tint); color: var(--color-success); }
-.badge-info { background: var(--color-primary-tint); color: var(--color-primary-dark); }
+/* Neutral, not brand-tinted — this badge appears on every card/status row,
+   and the accent colour is reserved for primary actions/active states only. */
+.badge-info { background: var(--color-surface-alt); color: var(--color-text-muted); }
 
 /* Cards / surfaces */
 .surface-card {
@@ -266,6 +268,13 @@ textarea:focus-visible,
     transition: transform var(--duration-micro) var(--ease-spring);
 }
 .meal-card-fav:active { transform: scale(0.85); }
+.meal-card-fav .fav-icon { color: var(--color-text-muted); }
+.meal-card-fav .fav-icon-active { color: var(--color-primary); }
+
+.star-icon { color: var(--color-warning); vertical-align: -1px; }
+.verified-icon { color: var(--color-accent); }
+
+.pickup-window svg { vertical-align: -3px; margin-right: 2px; color: var(--color-text-faint); }
 
 /* Section heading with rail */
 .section-heading {
@@ -344,8 +353,22 @@ textarea:focus-visible,
     padding: var(--space-10) var(--space-4);
     color: var(--color-text-muted);
 }
-.empty-state-emoji { font-size: 3rem; margin-bottom: var(--space-3); }
+.empty-state-icon {
+    width: 64px; height: 64px;
+    margin: 0 auto var(--space-4);
+    border-radius: 50%;
+    background: var(--color-surface-alt);
+    color: var(--color-text-faint);
+    display: flex; align-items: center; justify-content: center;
+}
 .empty-state h3 { font-size: var(--fs-lg); color: var(--color-text); margin-bottom: var(--space-2); }
+
+/* Accent colour is reserved for primary actions/active states (per top-tier
+   marketplace research — Airbnb's 2025 system uses its accent sparingly, not
+   decoratively); page-title icons stay neutral so the accent keeps its signal. */
+.page-title { display: flex; align-items: center; gap: 0.55rem; }
+.page-title svg { color: var(--color-text-faint); flex: 0 0 auto; }
+.page-title svg.status-icon-success { color: var(--color-success); }
 
 /* Skeleton loading */
 .skeleton {
