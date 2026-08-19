@@ -1,0 +1,202 @@
+@page "/post"
+@using Microsoft.EntityFrameworkCore
+@inject IFoodDropService FoodDropService
+@inject CurrentUserService CurrentUser
+@inject Marketplace.Web.Data.AppDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>Cook &amp; sell — Batch</PageTitle>
+
+<h1 style="font-size:var(--fs-xl); margin-bottom:var(--space-1);">What are you cooking?</h1>
+<p class="text-muted mb-4">Set it up once — buyers reserve a portion, you cook exactly what's needed.</p>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <p class="text-muted">Pick a user in the sidebar first.</p>
+}
+else if (_sellerProfile is null)
+{
+    <div class="empty-state">
+        <div class="empty-state-emoji">👩‍🍳</div>
+        <h3>No seller profile yet</h3>
+        <p>
+            Full seller onboarding (identity, food-business info, pickup locations) isn't built in this pass —
+            switch to one of the seeded cooks (Maya, Yuki, Minh, Ravi, Soo-jin, Amir) in the sidebar to try posting a food drop.
+        </p>
+    </div>
+}
+else
+{
+    <EditForm Model="_form" OnValidSubmit="Submit" class="col-md-7">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Dish name</label>
+            <InputText class="form-control" @bind-Value="_form.Title" placeholder="e.g. Thai Green Curry" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <InputTextArea class="form-control" rows="3" @bind-Value="_form.Description" />
+        </div>
+
+        <div class="row">
+            <div class="col-6 mb-3">
+                <label class="form-label">Cuisine</label>
+                <InputSelect class="form-select" @bind-Value="_form.CategoryId">
+                    @foreach (var c in _categories)
+                    {
+                        <option value="@c.Id">@c.Icon @c.Name</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="col-6 mb-3">
+                <label class="form-label">Emoji placeholder</label>
+                <InputText class="form-control" @bind-Value="_form.ImageEmoji" />
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-4 mb-3">
+                <label class="form-label">Price / portion (AUD)</label>
+                <InputNumber class="form-control" @bind-Value="_form.Price" />
+            </div>
+            <div class="col-4 mb-3">
+                <label class="form-label">Portions available</label>
+                <InputNumber class="form-control" @bind-Value="_form.Portions" />
+            </div>
+            <div class="col-4 mb-3">
+                <label class="form-label">Orders close</label>
+                <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="_form.OrderDeadline" />
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-6 mb-3">
+                <label class="form-label">Pickup starts</label>
+                <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="_form.PickupStart" />
+            </div>
+            <div class="col-6 mb-3">
+                <label class="form-label">Pickup ends</label>
+                <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="_form.PickupEnd" />
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Pickup location</label>
+            <InputSelect class="form-select" @bind-Value="_form.PickupLocationId">
+                @foreach (var loc in _pickupLocations)
+                {
+                    <option value="@loc.Id">@loc.Label · @loc.Suburb</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Ingredients</label>
+            <InputText class="form-control" @bind-Value="_form.Ingredients" placeholder="Comma-separated" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Allergens</label>
+            <InputText class="form-control" @bind-Value="_form.Allergens" placeholder="e.g. Contains peanuts, gluten" />
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label d-block">Dietary labels</label>
+            @foreach (DietaryLabel value in Enum.GetValues<DietaryLabel>())
+            {
+                @if (value != DietaryLabel.None)
+                {
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="@value" checked="@_form.Dietary.HasFlag(value)" @onchange="e => ToggleDietary(value, e.Value)" />
+                        <label class="form-check-label" for="@value">@value</label>
+                    </div>
+                }
+            }
+        </div>
+
+        <button class="btn btn-primary" type="submit">Publish food drop</button>
+    </EditForm>
+}
+
+@code {
+    private List<Category> _categories = new();
+    private SellerProfile? _sellerProfile;
+    private List<PickupLocation> _pickupLocations = new();
+    private FormModel _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categories = await FoodDropService.GetCategoriesAsync();
+        if (_categories.Count > 0) _form.CategoryId = _categories[0].Id;
+
+        if (CurrentUser.CurrentUser is not null)
+        {
+            _sellerProfile = await Db.SellerProfiles.AsNoTracking()
+                .Include(sp => sp.PickupLocations)
+                .FirstOrDefaultAsync(sp => sp.UserId == CurrentUser.CurrentUser.Id);
+            if (_sellerProfile is not null)
+            {
+                _pickupLocations = _sellerProfile.PickupLocations;
+                if (_pickupLocations.Count > 0) _form.PickupLocationId = _pickupLocations[0].Id;
+            }
+        }
+
+        var now = DateTime.Now;
+        _form.OrderDeadline = now.AddHours(4);
+        _form.PickupStart = now.AddHours(5);
+        _form.PickupEnd = now.AddHours(6.5);
+    }
+
+    private void ToggleDietary(DietaryLabel value, object? isChecked)
+    {
+        if (isChecked is true) _form.Dietary |= value;
+        else _form.Dietary &= ~value;
+    }
+
+    private async Task Submit()
+    {
+        if (CurrentUser.CurrentUser is null) return;
+
+        var drop = new FoodDrop
+        {
+            Title = _form.Title,
+            Description = _form.Description,
+            ImageEmoji = string.IsNullOrWhiteSpace(_form.ImageEmoji) ? "🍲" : _form.ImageEmoji,
+            Price = _form.Price,
+            PortionsTotal = _form.Portions,
+            OrderDeadline = _form.OrderDeadline.ToUniversalTime(),
+            PickupWindowStart = _form.PickupStart.ToUniversalTime(),
+            PickupWindowEnd = _form.PickupEnd.ToUniversalTime(),
+            Ingredients = _form.Ingredients,
+            Allergens = _form.Allergens,
+            Dietary = _form.Dietary,
+            CategoryId = _form.CategoryId,
+            SellerId = CurrentUser.CurrentUser.Id,
+            PickupLocationId = _form.PickupLocationId,
+        };
+
+        var created = await FoodDropService.CreateAsync(drop);
+        Nav.NavigateTo($"/food/{created.Id}");
+    }
+
+    private class FormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Range(1, 500)]
+        public decimal Price { get; set; } = 12;
+        [System.ComponentModel.DataAnnotations.Range(1, 200)]
+        public int Portions { get; set; } = 10;
+        public DateTime OrderDeadline { get; set; }
+        public DateTime PickupStart { get; set; }
+        public DateTime PickupEnd { get; set; }
+        public string Ingredients { get; set; } = "";
+        public string Allergens { get; set; } = "";
+        public DietaryLabel Dietary { get; set; } = DietaryLabel.None;
+        public int CategoryId { get; set; }
+        public int PickupLocationId { get; set; }
+        public string ImageEmoji { get; set; } = "🍲";
+    }
+}

@@ -1,0 +1,293 @@
+@page "/food/{Id:int}"
+@inject IFoodDropService FoodDropService
+@inject IFavoriteService FavoriteService
+@inject IMessageService MessageService
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>@(_drop?.Title ?? "Food drop") — Batch</PageTitle>
+
+@if (_drop is null)
+{
+    <div class="row g-4">
+        <div class="col-md-6"><div class="skeleton" style="height:320px;"></div></div>
+        <div class="col-md-6"><div class="skeleton" style="height:320px;"></div></div>
+    </div>
+}
+else
+{
+    var closed = !_drop.IsOrderable;
+    var soldOut = _drop.PortionsRemaining == 0;
+
+    <div class="row g-4 fade-in">
+        <div class="col-md-6">
+            <div class="food-hero surface-card">
+                @if (!string.IsNullOrWhiteSpace(_drop.ImageUrl))
+                {
+                    <img src="@_drop.ImageUrl" alt="@_drop.Title" />
+                }
+                else
+                {
+                    <span style="font-size:7rem;">@_drop.ImageEmoji</span>
+                }
+            </div>
+
+            <div class="surface-card p-3 mt-3">
+                <h5 style="font-size:var(--fs-base); font-weight:600;">Pickup details</h5>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">Orders close</span>
+                    <strong>@_drop.OrderDeadline.ToLocalTime().ToString("ddd d MMM, h:mm tt")</strong>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">Pickup window</span>
+                    <strong>@_drop.PickupWindowStart.ToLocalTime().ToString("h:mm tt")–@_drop.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")</strong>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">Location</span>
+                    <strong>@_drop.PickupLocation?.Suburb · @DistanceLabel()</strong>
+                </div>
+                <p class="text-muted small mt-2 mb-0">Exact pickup address and instructions are revealed once your order is confirmed and paid.</p>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="d-flex gap-2 mb-2">
+                @if (soldOut)
+                {
+                    <span class="badge-pill badge-sold-out">Sold out</span>
+                }
+                else if (closed)
+                {
+                    <span class="badge-pill badge-sold-out">Orders closed</span>
+                }
+                else if (_drop.PortionsRemaining <= 3)
+                {
+                    <span class="badge-pill badge-urgent">Only @_drop.PortionsRemaining left</span>
+                }
+                <span class="badge-pill badge-info">@_drop.Category?.Icon @_drop.Category?.Name</span>
+            </div>
+
+            <h1 style="font-size:var(--fs-2xl);">@_drop.Title</h1>
+            <div class="meal-card-price" style="font-size:var(--fs-xl);">$@_drop.Price.ToString("0.##") <span class="text-muted" style="font-size:var(--fs-sm); font-weight:400;">per portion</span></div>
+            <p class="text-muted mt-1">@_drop.PortionsRemaining of @_drop.PortionsTotal portions left</p>
+
+            <p style="white-space:pre-wrap;" class="mt-3">@_drop.Description</p>
+
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                @foreach (var label in DietaryLabels())
+                {
+                    <span class="badge-pill badge-verified">@label</span>
+                }
+            </div>
+
+            <div class="surface-card p-3 mb-3">
+                <div class="row g-2 small">
+                    <div class="col-12"><strong>Ingredients:</strong> <span class="text-muted">@_drop.Ingredients</span></div>
+                    <div class="col-12"><strong>Allergens:</strong> <span class="text-muted">@(_drop.Allergens is { Length: > 0 } a ? a : "None declared")</span></div>
+                </div>
+            </div>
+
+            <div class="surface-card p-3 mb-3 seller-card">
+                <div class="d-flex align-items-center gap-2">
+                    <span style="font-size:1.8rem;">@_drop.Seller?.Avatar</span>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">@_drop.Seller?.Name @VerifiedCheck()</div>
+                        <div class="text-muted small">@_drop.Seller?.SellerProfile?.Cuisine · @_drop.Seller?.SellerProfile?.Suburb</div>
+                    </div>
+                    <div class="text-end">
+                        @if (_drop.Seller?.SellerProfile?.RatingAverage is decimal r)
+                        {
+                            <div class="fw-bold">★ @r.ToString("0.0")</div>
+                            <div class="text-muted small">@_drop.Seller.SellerProfile.CompletedOrders orders</div>
+                        }
+                        else
+                        {
+                            <div class="badge-pill badge-info">New cook</div>
+                        }
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_drop.Seller?.SellerProfile?.Story))
+                {
+                    <p class="text-muted small mt-2 mb-0 fst-italic">"@_drop.Seller!.SellerProfile!.Story"</p>
+                }
+            </div>
+
+            @if (CurrentUser.CurrentUser is null)
+            {
+                <p class="text-muted"><em>Pick a user in the sidebar to reserve, save or message.</em></p>
+            }
+            else if (_drop.SellerId == CurrentUser.CurrentUser.Id)
+            {
+                <div class="surface-card p-3">
+                    <p class="mb-2"><em>This is your own food drop.</em></p>
+                    <a class="btn btn-outline-secondary" href="/my-food-drops">Manage in My food drops</a>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="text-muted">Portions</span>
+                    <div class="qty-stepper">
+                        <button type="button" @onclick="() => ChangeQty(-1)" disabled="@(closed || soldOut || _quantity <= 1)">−</button>
+                        <span class="qty-value">@_quantity</span>
+                        <button type="button" @onclick="() => ChangeQty(1)" disabled="@(closed || soldOut || _quantity >= _drop.PortionsRemaining)">+</button>
+                    </div>
+                </div>
+
+                <p class="text-muted small">
+                    Cancel before @_drop.OrderDeadline.ToLocalTime().ToString("h:mm tt") for a full refund. After orders close, your cook has started
+                    preparing your food, so cancellations aren't guaranteed a refund.
+                </p>
+
+                <div class="btn-sticky-cta d-flex gap-2">
+                    <button class="btn btn-outline-warning" style="min-width:44px;" @onclick="ToggleFavorite" title="Save">
+                        @(_isFavorite ? "❤️" : "🤍")
+                    </button>
+                    <button class="btn btn-primary flex-grow-1" style="font-size:var(--fs-md);" disabled="@(closed || soldOut)" @onclick="GoToCheckout">
+                        @if (soldOut)
+                        {
+                            <text>Sold out</text>
+                        }
+                        else if (closed)
+                        {
+                            <text>Orders closed</text>
+                        }
+                        else
+                        {
+                            <text>Reserve @(_quantity > 1 ? $"{_quantity} · " : "")$@((_drop.Price * _quantity).ToString("0.##"))</text>
+                        }
+                    </button>
+                </div>
+
+                <details class="mt-3">
+                    <summary class="text-muted" style="cursor:pointer;">Message @_drop.Seller?.Name</summary>
+                    <div class="border rounded p-2 mt-2 mb-2" style="max-height:200px; overflow-y:auto;">
+                        @foreach (var m in _thread)
+                        {
+                            <div class="mb-1 @(m.SenderId == CurrentUser.CurrentUser.Id ? "text-end" : "")">
+                                <span class="badge @(m.SenderId == CurrentUser.CurrentUser.Id ? "bg-primary" : "bg-secondary")">@m.Body</span>
+                            </div>
+                        }
+                        @if (_thread.Count == 0)
+                        {
+                            <span class="text-muted small">No messages yet — ask a question before you reserve.</span>
+                        }
+                    </div>
+                    <div class="input-group">
+                        <input class="form-control" placeholder="Is this still available?" @bind="_draft" @onkeyup="HandleKeyUp" />
+                        <button class="btn btn-outline-secondary" @onclick="SendMessage">Send</button>
+                    </div>
+                </details>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .food-hero {
+        height: 320px;
+        background: linear-gradient(135deg, var(--color-surface-alt), #EFE3D3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .food-hero img { width: 100%; height: 100%; object-fit: cover; }
+    .seller-card { transition: box-shadow var(--duration-standard) var(--ease-standard); }
+    .seller-card:hover { box-shadow: var(--shadow-md); }
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private FoodDrop? _drop;
+    private bool _isFavorite;
+    private int _quantity = 1;
+    private List<Message> _thread = new();
+    private string _draft = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        await Load();
+    }
+
+    protected override async Task OnParametersSetAsync() => await Load();
+
+    private async Task Load()
+    {
+        _drop = await FoodDropService.GetByIdAsync(Id);
+        _quantity = 1;
+        if (_drop is null) return;
+
+        if (CurrentUser.CurrentUser is not null && CurrentUser.CurrentUser.Id != _drop.SellerId)
+        {
+            _isFavorite = await FavoriteService.IsFavoriteAsync(CurrentUser.CurrentUser.Id, Id);
+            _thread = await MessageService.GetThreadAsync(Id, CurrentUser.CurrentUser.Id, _drop.SellerId);
+        }
+    }
+
+    private void ChangeQty(int delta)
+    {
+        if (_drop is null) return;
+        var next = _quantity + delta;
+        _quantity = Math.Clamp(next, 1, Math.Max(1, _drop.PortionsRemaining));
+    }
+
+    private string DistanceLabel()
+    {
+        var km = _drop?.PickupLocation?.ApproxDistanceKm ?? 0;
+        return km < 1 ? $"{km * 1000:0} m away" : $"{km:0.0} km away";
+    }
+
+    private string VerifiedCheck() =>
+        _drop?.Seller?.SellerProfile?.VerificationStatus == VerificationStatus.Verified ? "✓" : "";
+
+    private IEnumerable<string> DietaryLabels()
+    {
+        if (_drop is null) yield break;
+        foreach (DietaryLabel value in Enum.GetValues<DietaryLabel>())
+        {
+            if (value == DietaryLabel.None) continue;
+            if (_drop.Dietary.HasFlag(value)) yield return value.ToString();
+        }
+    }
+
+    private void GoToCheckout()
+    {
+        if (_drop is null) return;
+        Nav.NavigateTo($"/checkout/{_drop.Id}?quantity={_quantity}");
+    }
+
+    private async void OnUserChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleFavorite()
+    {
+        if (CurrentUser.CurrentUser is null || _drop is null) return;
+        await FavoriteService.ToggleAsync(CurrentUser.CurrentUser.Id, _drop.Id);
+        _isFavorite = !_isFavorite;
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SendMessage();
+    }
+
+    private async Task SendMessage()
+    {
+        if (CurrentUser.CurrentUser is null || _drop is null || string.IsNullOrWhiteSpace(_draft)) return;
+        await MessageService.SendAsync(_drop.Id, CurrentUser.CurrentUser.Id, _drop.SellerId, _draft);
+        _draft = "";
+        _thread = await MessageService.GetThreadAsync(_drop.Id, CurrentUser.CurrentUser.Id, _drop.SellerId);
+    }
+
+    public void Dispose()
+    {
+        CurrentUser.OnChange -= OnUserChanged;
+    }
+}

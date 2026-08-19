@@ -1,0 +1,83 @@
+@using Marketplace.Web.Models
+
+<div class="meal-card fade-in" role="button" tabindex="0"
+     @onclick="() => OnOpen.InvokeAsync(Drop.Id)"
+     @onkeyup="@(async e => { if (e.Key == "Enter") await OnOpen.InvokeAsync(Drop.Id); })">
+    <div class="meal-card-thumb">
+        @if (!string.IsNullOrWhiteSpace(Drop.ImageUrl))
+        {
+            <img src="@Drop.ImageUrl" alt="@Drop.Title" loading="lazy" />
+        }
+        else
+        {
+            <span class="meal-card-emoji">@Drop.ImageEmoji</span>
+        }
+
+        <div class="meal-card-badges">
+            @if (Drop.PortionsRemaining == 0)
+            {
+                <span class="badge-pill badge-sold-out">Sold out</span>
+            }
+            else if (!Drop.IsOrderable)
+            {
+                <span class="badge-pill badge-sold-out">Orders closed</span>
+            }
+            else if (Drop.PortionsRemaining <= 3)
+            {
+                <span class="badge-pill badge-urgent">Only @Drop.PortionsRemaining left</span>
+            }
+            else if ((Drop.OrderDeadline - DateTime.UtcNow).TotalMinutes <= 60)
+            {
+                <span class="badge-pill badge-urgent">Closes in @ClosesInLabel()</span>
+            }
+        </div>
+
+        @if (ShowFavoriteButton)
+        {
+            <button type="button" class="meal-card-fav" title="@(IsFavorite ? "Remove from saved" : "Save")"
+                    @onclick="ToggleFavorite" @onclick:stopPropagation="true">
+                @(IsFavorite ? "❤️" : "🤍")
+            </button>
+        }
+    </div>
+    <div class="meal-card-body">
+        <div class="d-flex justify-content-between align-items-start">
+            <span class="meal-card-price">$@Drop.Price.ToString("0.##")</span>
+            <span class="badge-pill badge-info">@Drop.Category?.Icon @Drop.Category?.Name</span>
+        </div>
+        <div class="meal-card-title text-truncate">@Drop.Title</div>
+        <div class="meal-card-meta">
+            <span>@Drop.Seller?.Avatar @Drop.Seller?.Name</span>
+            @if (Drop.Seller?.SellerProfile?.RatingAverage is decimal r)
+            {
+                <span>· ★ @r.ToString("0.0")</span>
+            }
+            <span>· @DistanceLabel()</span>
+        </div>
+        <div class="pickup-window mt-1">
+            🕒 Pickup @Drop.PickupWindowStart.ToLocalTime().ToString("h:mm tt")–@Drop.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public FoodDrop Drop { get; set; } = null!;
+    [Parameter] public bool IsFavorite { get; set; }
+    [Parameter] public bool ShowFavoriteButton { get; set; } = true;
+    [Parameter] public EventCallback<int> OnOpen { get; set; }
+    [Parameter] public EventCallback<int> OnToggleFavorite { get; set; }
+
+    private async Task ToggleFavorite() => await OnToggleFavorite.InvokeAsync(Drop.Id);
+
+    private string DistanceLabel()
+    {
+        var km = Drop.PickupLocation?.ApproxDistanceKm ?? 0;
+        return km < 1 ? $"{km * 1000:0} m away" : $"{km:0.0} km away";
+    }
+
+    private string ClosesInLabel()
+    {
+        var mins = Math.Max(0, (int)(Drop.OrderDeadline - DateTime.UtcNow).TotalMinutes);
+        return mins < 60 ? $"{mins} min" : $"{mins / 60}h {mins % 60}m";
+    }
+}

@@ -1,0 +1,116 @@
+@using Microsoft.EntityFrameworkCore
+@inject CurrentUserService CurrentUser
+@inject Marketplace.Web.Data.AppDbContext Db
+@inject NavigationManager Nav
+@implements IDisposable
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">🥘 Batch</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+
+    <div class="px-3 py-3">
+        @if (CurrentUser.CurrentUser is not null)
+        {
+            <div class="d-flex align-items-center mb-2 current-user-chip">
+                <span style="font-size:1.4rem;">@CurrentUser.CurrentUser.Avatar</span>
+                <span class="ms-2">@CurrentUser.CurrentUser.Name</span>
+            </div>
+        }
+        else
+        {
+            <div class="demo-note mb-2">Not signed in — pick someone below</div>
+        }
+        @* Always rendered, even with nobody selected yet — otherwise a
+           first-time visitor with no stored session has no way to ever
+           pick a user. Found by actually driving the app, not by reading
+           the code (brief Section 48). *@
+        <select class="form-select form-select-sm" @onchange="SwitchUser">
+            <option value="" selected="@(CurrentUser.CurrentUser is null)" disabled>Choose who you are…</option>
+            @foreach (var u in _allUsers)
+            {
+                <option value="@u.Id" selected="@(u.Id == CurrentUser.CurrentUser?.Id)">@u.Avatar @u.Name</option>
+            }
+        </select>
+        <div class="form-text demo-note">demo login — switch "who you are" anytime</div>
+    </div>
+
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                🏠 Discover
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="orders">
+                🧾 My orders
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="favorites">
+                ⭐ Saved
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="messages">
+                💬 Messages
+            </NavLink>
+        </div>
+        <div class="nav-item px-3 nav-item-divider">
+            <NavLink class="nav-link" href="post">
+                🍳 Sell
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="my-food-drops">
+                📋 Kitchen
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+<!-- Mobile-only quick-action bar — thumb-reachable subset of the nav above,
+     kept to 4 items deliberately (brief Section 29: don't clutter it). -->
+<nav class="bottom-nav" aria-label="Primary">
+    <NavLink class="bottom-nav-link" href="" Match="NavLinkMatch.All">
+        <span class="bottom-nav-icon">🏠</span><span>Home</span>
+    </NavLink>
+    <NavLink class="bottom-nav-link" href="favorites">
+        <span class="bottom-nav-icon">⭐</span><span>Saved</span>
+    </NavLink>
+    <NavLink class="bottom-nav-link" href="orders">
+        <span class="bottom-nav-icon">🧾</span><span>Orders</span>
+    </NavLink>
+    <NavLink class="bottom-nav-link bottom-nav-cta" href="post">
+        <span class="bottom-nav-icon">➕</span><span>Sell</span>
+    </NavLink>
+</nav>
+
+@code {
+    private List<User> _allUsers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allUsers = await Db.Users.AsNoTracking().OrderBy(u => u.Name).ToListAsync();
+        CurrentUser.OnChange += StateHasChanged;
+        await CurrentUser.InitializeAsync();
+    }
+
+    private async Task SwitchUser(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            await CurrentUser.LoginAsync(id);
+        }
+    }
+
+    public void Dispose()
+    {
+        CurrentUser.OnChange -= StateHasChanged;
+    }
+}

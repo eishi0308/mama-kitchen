@@ -1,0 +1,123 @@
+@page "/messages"
+@page "/messages/{FoodDropId:int}/{OtherUserId:int}"
+@inject IMessageService MessageService
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>Messages — Batch</PageTitle>
+
+<h1 style="font-size:var(--fs-xl); margin-bottom:var(--space-4);">💬 Messages</h1>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <p class="text-muted">Pick a user in the sidebar first.</p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <div class="d-flex flex-column gap-2">
+                @foreach (var c in _conversations)
+                {
+                    <a class="surface-card p-2 text-decoration-none text-dark @(IsActive(c) ? "conversation-active" : "")"
+                       href="/messages/@c.FoodDropId/@c.OtherUserId">
+                        <div class="d-flex justify-content-between">
+                            <strong>@c.OtherUserAvatar @c.OtherUserName</strong>
+                            <small class="text-muted">@c.LastMessageAt.ToLocalTime().ToString("d MMM")</small>
+                        </div>
+                        <div class="small text-truncate text-muted">re: @c.FoodDropTitle</div>
+                        <div class="small text-truncate">@c.LastMessage</div>
+                    </a>
+                }
+                @if (_conversations.Count == 0)
+                {
+                    <p class="text-muted">No conversations yet — message a cook from a food drop page.</p>
+                }
+            </div>
+        </div>
+        <div class="col-md-8">
+            @if (FoodDropId.HasValue && OtherUserId.HasValue)
+            {
+                <div class="surface-card p-2 mb-2" style="max-height:400px; overflow-y:auto;">
+                    @foreach (var m in _thread)
+                    {
+                        <div class="mb-1 @(m.SenderId == CurrentUser.CurrentUser.Id ? "text-end" : "")">
+                            <span class="badge @(m.SenderId == CurrentUser.CurrentUser.Id ? "bg-primary" : "bg-secondary")">@m.Body</span>
+                        </div>
+                    }
+                </div>
+                <div class="input-group">
+                    <input class="form-control" @bind="_draft" @onkeyup="HandleKeyUp" placeholder="Type a message..." />
+                    <button class="btn btn-primary" @onclick="Send">Send</button>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">Select a conversation.</p>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .conversation-active { outline: 2px solid var(--color-primary); }
+</style>
+
+@code {
+    [Parameter] public int? FoodDropId { get; set; }
+    [Parameter] public int? OtherUserId { get; set; }
+
+    private List<ConversationSummary> _conversations = new();
+    private List<Message> _thread = new();
+    private string _draft = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        await LoadConversations();
+        await LoadThread();
+    }
+
+    protected override async Task OnParametersSetAsync() => await LoadThread();
+
+    private async Task LoadConversations()
+    {
+        if (CurrentUser.CurrentUser is not null)
+            _conversations = await MessageService.GetConversationsAsync(CurrentUser.CurrentUser.Id);
+    }
+
+    private async Task LoadThread()
+    {
+        if (CurrentUser.CurrentUser is not null && FoodDropId.HasValue && OtherUserId.HasValue)
+            _thread = await MessageService.GetThreadAsync(FoodDropId.Value, CurrentUser.CurrentUser.Id, OtherUserId.Value);
+    }
+
+    private bool IsActive(ConversationSummary c) => c.FoodDropId == FoodDropId && c.OtherUserId == OtherUserId;
+
+    private async void OnUserChanged()
+    {
+        await LoadConversations();
+        await LoadThread();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Send();
+    }
+
+    private async Task Send()
+    {
+        if (CurrentUser.CurrentUser is null || !FoodDropId.HasValue || !OtherUserId.HasValue || string.IsNullOrWhiteSpace(_draft)) return;
+        await MessageService.SendAsync(FoodDropId.Value, CurrentUser.CurrentUser.Id, OtherUserId.Value, _draft);
+        _draft = "";
+        await LoadThread();
+        await LoadConversations();
+    }
+
+    public void Dispose()
+    {
+        CurrentUser.OnChange -= OnUserChanged;
+    }
+}

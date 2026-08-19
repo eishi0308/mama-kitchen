@@ -1,0 +1,157 @@
+@page "/checkout/{Id:int}"
+@inject IFoodDropService FoodDropService
+@inject IOrderService OrderService
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>Checkout — Batch</PageTitle>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <p class="text-muted">Pick a user in the sidebar first.</p>
+}
+else if (_drop is null)
+{
+    <div class="skeleton" style="height:280px; max-width:520px;"></div>
+}
+else
+{
+    <div class="surface-card p-4 fade-in" style="max-width:520px;">
+        <h1 style="font-size:var(--fs-xl); margin-bottom:var(--space-4);">Your order</h1>
+
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <span style="font-size:2.2rem;">@_drop.ImageEmoji</span>
+            <div class="flex-grow-1">
+                <div class="fw-bold">@_drop.Title × @_quantity</div>
+                <div class="text-muted small">@_drop.Seller?.Name · @_drop.Category?.Name</div>
+            </div>
+            <div class="fw-bold">$@((_drop.Price * _quantity).ToString("0.##"))</div>
+        </div>
+
+        <hr />
+
+        <div class="mb-3">
+            <div class="text-muted small mb-1">PICKUP</div>
+            <div>@PickupDayLabel() · @_drop.PickupWindowStart.ToLocalTime().ToString("h:mm tt")–@_drop.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")</div>
+            <div class="text-muted">@_drop.PickupLocation?.Suburb</div>
+        </div>
+
+        <div class="mb-3">
+            <div class="text-muted small mb-1">PAYMENT METHOD</div>
+            <div class="d-flex gap-2">
+                @foreach (var method in new[] { "Card", "Apple Pay", "Google Pay" })
+                {
+                    <button type="button" class="chip @(_paymentMethod == method ? "active" : "")" @onclick="() => _paymentMethod = method">@method</button>
+                }
+            </div>
+        </div>
+
+        <hr />
+
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted">Subtotal</span>
+            <span>$@((_drop.Price * _quantity).ToString("0.00"))</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-3" style="font-size:var(--fs-lg); font-weight:700;">
+            <span>Total</span>
+            <span>$@((_drop.Price * _quantity).ToString("0.00"))</span>
+        </div>
+
+        @if (_errorMessage is not null)
+        {
+            <div class="badge-pill badge-urgent d-block mb-3 p-2" style="white-space:normal;">@_errorMessage</div>
+        }
+
+        <button class="btn btn-primary w-100" style="font-size:var(--fs-md); padding:0.85rem;"
+                disabled="@(_state != CheckoutState.Reviewing)" @onclick="Submit">
+            @switch (_state)
+            {
+                case CheckoutState.Processing:
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <text>Confirming payment…</text>
+                    break;
+                case CheckoutState.Succeeded:
+                    <text>Reserved ✓</text>
+                    break;
+                default:
+                    <text>Reserve &amp; Pay</text>
+                    break;
+            }
+        </button>
+
+        <p class="text-muted small text-center mt-2 mb-0">🔒 Payment protected — held securely until your order is fulfilled.</p>
+    </div>
+}
+
+@code {
+    private enum CheckoutState { Reviewing, Processing, Succeeded }
+
+    [Parameter] public int Id { get; set; }
+    [SupplyParameterFromQuery] public int? Quantity { get; set; }
+
+    private FoodDrop? _drop;
+    private int _quantity = 1;
+    private string _paymentMethod = "Card";
+    private CheckoutState _state = CheckoutState.Reviewing;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        _drop = await FoodDropService.GetByIdAsync(Id);
+        _quantity = Math.Max(1, Quantity ?? 1);
+    }
+
+    private async void OnUserChanged() => await InvokeAsync(StateHasChanged);
+
+    public void Dispose() => CurrentUser.OnChange -= OnUserChanged;
+
+    private string PickupDayLabel()
+    {
+        if (_drop is null) return "";
+        var days = (_drop.PickupWindowStart.ToLocalTime().Date - DateTime.Now.Date).Days;
+        return days switch
+        {
+            0 => "Tonight",
+            1 => "Tomorrow",
+            _ => _drop.PickupWindowStart.ToLocalTime().ToString("dddd d MMM"),
+        };
+    }
+
+    private async Task Submit()
+    {
+        if (_drop is null || CurrentUser.CurrentUser is null) return;
+
+        _errorMessage = null;
+        _state = CheckoutState.Processing;
+        StateHasChanged();
+
+        var creation = await OrderService.CreateOrderAsync(CurrentUser.CurrentUser.Id, Id, _quantity);
+        if (!creation.Success)
+        {
+            _errorMessage = creation.Error switch
+            {
+                OrderCreationError.InsufficientPortions => "Sorry — someone just reserved the last of this batch. Try another quantity or check back later.",
+                OrderCreationError.NotOrderable => "This food drop just stopped taking orders.",
+                OrderCreationError.CannotOrderOwnListing => "You can't order your own food drop.",
+                _ => "This food drop couldn't be found.",
+            };
+            _state = CheckoutState.Reviewing;
+            return;
+        }
+
+        var confirmed = await OrderService.ConfirmPaymentAsync(creation.Order!.Id);
+        if (confirmed is null || confirmed.Status != OrderStatus.Confirmed)
+        {
+            _errorMessage = "Payment couldn't be confirmed. Please try again.";
+            _state = CheckoutState.Reviewing;
+            return;
+        }
+
+        _state = CheckoutState.Succeeded;
+        StateHasChanged();
+        await Task.Delay(500); // let the "Reserved ✓" state register before navigating
+        Nav.NavigateTo($"/orders/{confirmed.Id}");
+    }
+}

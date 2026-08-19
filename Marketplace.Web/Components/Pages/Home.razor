@@ -1,0 +1,191 @@
+@page "/"
+@inject IFoodDropService FoodDropService
+@inject IFavoriteService FavoriteService
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>Batch — homemade food near you</PageTitle>
+
+<div class="mb-4">
+    <h1 style="font-size:var(--fs-2xl); margin-bottom:0.15em;">What can you eat near you tonight?</h1>
+    <p class="text-muted" style="font-size:var(--fs-md);">Homemade meals from home cooks nearby — pickup only, no delivery markup.</p>
+</div>
+
+<div class="mb-3">
+    <input class="form-control form-control-lg" style="border-radius:var(--radius-md); max-width:480px;"
+           placeholder="Search dish, cuisine or cook…" @bind="_query" @bind:event="oninput" @bind:after="ApplyFilters" />
+</div>
+
+<div class="chip-row mb-3">
+    <button class="chip @(IsChipActive(FilterChip.All) ? "active" : "")" @onclick="() => SetChip(FilterChip.All)">All</button>
+    <button class="chip @(IsChipActive(FilterChip.UnderFifteen) ? "active" : "")" @onclick="() => SetChip(FilterChip.UnderFifteen)">Under $15</button>
+    <button class="chip @(IsChipActive(FilterChip.ReadySoon) ? "active" : "")" @onclick="() => SetChip(FilterChip.ReadySoon)">Ready soon</button>
+    <button class="chip @(IsChipActive(FilterChip.Vegetarian) ? "active" : "")" @onclick="() => SetChip(FilterChip.Vegetarian)">🌱 Vegetarian</button>
+    <button class="chip @(IsChipActive(FilterChip.Halal) ? "active" : "")" @onclick="() => SetChip(FilterChip.Halal)">☪️ Halal</button>
+    @foreach (var c in _categories)
+    {
+        <button class="chip @(_categoryId == c.Id ? "active" : "")" @onclick="() => ToggleCategory(c.Id)">@c.Icon @c.Name</button>
+    }
+</div>
+
+@if (_drops is null)
+{
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+        @for (var i = 0; i < 8; i++)
+        {
+            <div class="col">
+                <div class="skeleton" style="height:168px;"></div>
+                <div class="skeleton mt-2" style="height:16px; width:60%;"></div>
+                <div class="skeleton mt-2" style="height:14px; width:40%;"></div>
+            </div>
+        }
+    </div>
+}
+else if (_drops.Count == 0)
+{
+    <div class="empty-state">
+        <div class="empty-state-emoji">🍽️</div>
+        <h3>Nothing nearby tonight — yet.</h3>
+        <p>We're still growing in your area. Try widening your search, or check back soon.</p>
+        <div class="d-flex justify-content-center gap-2 flex-wrap mt-3">
+            <button class="btn btn-primary" @onclick="ClearFilters">Clear filters</button>
+        </div>
+    </div>
+}
+else
+{
+    @foreach (var bucket in Buckets())
+    {
+        <h2 class="section-heading">@bucket.Label</h2>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3 mb-2">
+            @foreach (var drop in bucket.Drops)
+            {
+                <div class="col">
+                    <MealCard Drop="drop" IsFavorite="_favoriteIds.Contains(drop.Id)"
+                              ShowFavoriteButton="CurrentUser.CurrentUser is not null"
+                              OnOpen="GoToDrop" OnToggleFavorite="ToggleFavorite" />
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private enum FilterChip { All, UnderFifteen, ReadySoon, Vegetarian, Halal }
+
+    private List<FoodDrop>? _drops;
+    private List<Category> _categories = new();
+    private HashSet<int> _favoriteIds = new();
+    private string _query = "";
+    private int? _categoryId;
+    private FilterChip _activeChip = FilterChip.All;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        _categories = await FoodDropService.GetCategoriesAsync();
+        await LoadFavorites();
+        await ApplyFilters();
+    }
+
+    private bool IsChipActive(FilterChip chip) => _activeChip == chip;
+
+    private async Task SetChip(FilterChip chip)
+    {
+        _activeChip = chip;
+        await ApplyFilters();
+    }
+
+    private async Task ToggleCategory(int id)
+    {
+        _categoryId = _categoryId == id ? null : id;
+        await ApplyFilters();
+    }
+
+    private async Task ClearFilters()
+    {
+        _query = "";
+        _categoryId = null;
+        _activeChip = FilterChip.All;
+        await ApplyFilters();
+    }
+
+    private async Task ApplyFilters()
+    {
+        decimal? maxPrice = _activeChip == FilterChip.UnderFifteen ? 15 : null;
+        DietaryLabel? dietary = _activeChip switch
+        {
+            FilterChip.Vegetarian => DietaryLabel.Vegetarian,
+            FilterChip.Halal => DietaryLabel.Halal,
+            _ => null,
+        };
+
+        var results = await FoodDropService.SearchAsync(_query, _categoryId, maxPrice, dietary);
+
+        if (_activeChip == FilterChip.ReadySoon)
+        {
+            results = results.Where(d => d.IsOrderable && (d.OrderDeadline - DateTime.UtcNow).TotalMinutes <= 90).ToList();
+        }
+
+        _drops = results;
+        StateHasChanged();
+    }
+
+    private async Task LoadFavorites()
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        var favs = await FavoriteService.GetFavoritesAsync(CurrentUser.CurrentUser.Id);
+        _favoriteIds = favs.Select(f => f.Id).ToHashSet();
+    }
+
+    private async Task ToggleFavorite(int foodDropId)
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        await FavoriteService.ToggleAsync(CurrentUser.CurrentUser.Id, foodDropId);
+        if (!_favoriteIds.Add(foodDropId)) _favoriteIds.Remove(foodDropId);
+    }
+
+    private void GoToDrop(int id) => Nav.NavigateTo($"/food/{id}");
+
+    private record Bucket(string Label, List<FoodDrop> Drops);
+
+    private List<Bucket> Buckets()
+    {
+        if (_drops is null) return new();
+
+        // Bucketed by hours-until-pickup, not calendar-date equality — a
+        // calendar-day comparison breaks the moment "3 hours from now" rolls
+        // past local midnight (seed data created at 9pm reads as "tomorrow"
+        // for a pickup that's really still tonight). See brief Section 38:
+        // "timezone/date issues".
+        var tonight = new List<FoodDrop>();
+        var tomorrow = new List<FoodDrop>();
+        var later = new List<FoodDrop>();
+
+        foreach (var d in _drops)
+        {
+            var hoursUntil = (d.PickupWindowStart - DateTime.UtcNow).TotalHours;
+            if (hoursUntil < 15) tonight.Add(d);
+            else if (hoursUntil < 39) tomorrow.Add(d);
+            else later.Add(d);
+        }
+
+        var buckets = new List<Bucket>();
+        if (tonight.Count > 0) buckets.Add(new("Available tonight", tonight));
+        if (tomorrow.Count > 0) buckets.Add(new("Tomorrow", tomorrow));
+        if (later.Count > 0) buckets.Add(new("This weekend", later));
+        return buckets;
+    }
+
+    private async void OnUserChanged()
+    {
+        await LoadFavorites();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        CurrentUser.OnChange -= OnUserChanged;
+    }
+}

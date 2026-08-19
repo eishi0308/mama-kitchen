@@ -1,0 +1,159 @@
+.navbar-toggler {
+    appearance: none;
+    cursor: pointer;
+    width: 3.5rem;
+    height: 2.5rem;
+    color: white;
+    position: absolute;
+    top: 0.5rem;
+    right: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem rgba(255, 255, 255, 0.1);
+}
+
+.navbar-toggler:checked {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.top-row {
+    min-height: 3.5rem;
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.navbar-brand {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.current-user-chip {
+    color: #fff;
+    font-weight: 500;
+}
+
+.demo-note {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: var(--fs-xs);
+}
+
+.nav-item {
+    font-size: 0.9rem;
+    padding-bottom: 0.35rem;
+}
+
+    .nav-item:first-of-type {
+        padding-top: 1rem;
+    }
+
+    .nav-item:last-of-type {
+        padding-bottom: 1rem;
+    }
+
+    .nav-item-divider {
+        margin-top: 0.5rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .nav-item ::deep .nav-link {
+        color: rgba(255, 255, 255, 0.82);
+        background: none;
+        border: none;
+        border-radius: var(--radius-md);
+        height: 2.9rem;
+        display: flex;
+        align-items: center;
+        line-height: 2.9rem;
+        width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: background var(--duration-micro) var(--ease-standard), color var(--duration-micro) var(--ease-standard);
+    }
+
+.nav-item ::deep a.active {
+    background-color: rgba(255, 255, 255, 0.16);
+    color: white;
+    font-weight: 600;
+}
+
+.nav-item ::deep .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.09);
+    color: white;
+}
+
+.nav-scrollable {
+    display: none;
+}
+
+.navbar-toggler:checked ~ .nav-scrollable {
+    display: block;
+}
+
+/* Mobile bottom tab bar — hidden on desktop, primary nav on mobile */
+.bottom-nav {
+    display: none;
+}
+
+@media (max-width: 640.98px) {
+    .bottom-nav {
+        display: flex;
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        z-index: 20;
+        height: var(--bottom-nav-height);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        background: var(--color-surface);
+        border-top: 1px solid var(--color-border);
+        box-shadow: 0 -4px 16px rgba(43, 33, 27, 0.08);
+    }
+
+    .bottom-nav-link {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        color: var(--color-text-muted);
+        font-size: var(--fs-xs);
+        font-weight: 600;
+        text-decoration: none;
+        min-width: 44px;
+        min-height: 44px;
+        transition: color var(--duration-micro) var(--ease-standard);
+    }
+
+    .bottom-nav-icon {
+        font-size: 1.3rem;
+        transition: transform var(--duration-micro) var(--ease-spring);
+    }
+
+    .bottom-nav-link:active .bottom-nav-icon {
+        transform: scale(0.85);
+    }
+
+    .bottom-nav-link.active {
+        color: var(--color-primary);
+    }
+
+    .bottom-nav-cta .bottom-nav-icon {
+        color: var(--color-primary);
+    }
+}
+
+@media (min-width: 641px) {
+    .navbar-toggler {
+        display: none;
+    }
+
+    .nav-scrollable {
+        /* Never collapse the sidebar for wide screens */
+        display: block;
+
+        /* Allow sidebar to scroll for tall menus */
+        height: calc(100vh - 3.5rem);
+        overflow-y: auto;
+    }
+}

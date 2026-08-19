@@ -1,0 +1,16 @@
+## .NET build output
+bin/
+obj/
+
+## SQLite dev database (recreated by DbInitializer on first run)
+*.db
+*.db-shm
+*.db-wal
+
+## IDE
+.vs/
+.idea/
+*.user
+
+## OS
+.DS_Store

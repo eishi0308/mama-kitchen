@@ -1,0 +1,174 @@
+@page "/my-food-drops"
+@inject IFoodDropService FoodDropService
+@inject IOrderService OrderService
+@inject CurrentUserService CurrentUser
+@implements IDisposable
+
+<PageTitle>My food drops — Batch</PageTitle>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <p class="text-muted">Pick a user in the sidebar first.</p>
+}
+else
+{
+    <h1 style="font-size:var(--fs-xl);">@Greeting(), @CurrentUser.CurrentUser.Name</h1>
+
+    <h2 class="section-heading">Your food drops</h2>
+    @if (_drops is null)
+    {
+        <div class="skeleton" style="height:100px;"></div>
+    }
+    else if (_drops.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state-emoji">🍲</div>
+            <h3>You haven't posted a food drop yet</h3>
+            <a class="btn btn-primary" href="/post">Cook &amp; sell your first batch</a>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2 mb-4">
+            @foreach (var d in _drops)
+            {
+                var sold = d.PortionsTotal - d.PortionsRemaining;
+                <a href="/food/@d.Id" class="surface-card p-3 text-decoration-none text-dark order-row">
+                    <div class="d-flex align-items-center gap-3">
+                        <span style="font-size:1.8rem;">@d.ImageEmoji</span>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">@d.Title</div>
+                            <div class="text-muted small">@d.PickupWindowStart.ToLocalTime().ToString("ddd d MMM, h:mm tt") · @d.Status</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold">@sold / @d.PortionsTotal sold</div>
+                            <div class="text-muted small">$@((d.Price * sold).ToString("0.00")) revenue</div>
+                        </div>
+                    </div>
+                    <div class="skeleton-track mt-2">
+                        <div class="skeleton-fill" style="width:@(d.PortionsTotal == 0 ? 0 : sold * 100 / d.PortionsTotal)%;"></div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+
+    <h2 class="section-heading">Incoming orders</h2>
+    @if (_orders is null)
+    {
+        <div class="skeleton" style="height:80px;"></div>
+    }
+    else if (_orders.Count == 0)
+    {
+        <p class="text-muted">No orders yet.</p>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2">
+            @foreach (var o in _orders)
+            {
+                <div class="surface-card p-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <span style="font-size:1.5rem;">@o.Buyer?.Avatar</span>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">@o.Buyer?.Name · @o.FoodDrop?.Title × @o.Quantity</div>
+                            <div class="text-muted small">$@o.TotalAmount.ToString("0.00") · @o.CreatedAt.ToLocalTime().ToString("d MMM, h:mm tt")</div>
+                        </div>
+                        <span class="badge-pill @StatusBadgeClass(o.Status)">@o.Status</span>
+                    </div>
+
+                    @if (o.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready)
+                    {
+                        <div class="d-flex gap-2 mt-2">
+                            <input class="form-control form-control-sm" style="max-width:120px;" maxlength="4"
+                                   @bind="_codeInputs[o.Id]" placeholder="Pickup code" />
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => ConfirmPickup(o.Id)">Confirm pickup</button>
+                        </div>
+                        @if (_errors.TryGetValue(o.Id, out var err))
+                        {
+                            <p class="text-danger small mt-1 mb-0">@err</p>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    }
+}
+
+<style>
+    .skeleton-track { height: 6px; background: var(--color-surface-alt); border-radius: var(--radius-full); overflow: hidden; }
+    .skeleton-fill { height: 100%; background: var(--color-primary); border-radius: var(--radius-full); transition: width var(--duration-complex) var(--ease-standard); }
+</style>
+
+@code {
+    private List<FoodDrop>? _drops;
+    private List<Order>? _orders;
+    private Dictionary<int, string> _codeInputs = new();
+    private Dictionary<int, string> _errors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _drops = await FoodDropService.GetBySellerAsync(CurrentUser.CurrentUser.Id);
+        _orders = await OrderService.GetForSellerAsync(CurrentUser.CurrentUser.Id);
+
+        // @bind against a Dictionary indexer throws KeyNotFoundException on
+        // its very first read if the key isn't already present — and an
+        // unhandled exception here kills the whole Blazor circuit (found by
+        // actually running the seller flow, not by reading the code).
+        foreach (var o in _orders)
+        {
+            _codeInputs.TryAdd(o.Id, "");
+        }
+    }
+
+    private static string Greeting()
+    {
+        var hour = DateTime.Now.Hour;
+        return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    }
+
+    private static string StatusBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Collected => "badge-success",
+        OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready => "badge-info",
+        OrderStatus.PendingPayment => "badge-urgent",
+        _ => "badge-sold-out",
+    };
+
+    private async Task ConfirmPickup(int orderId)
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _errors.Remove(orderId);
+        var code = _codeInputs.GetValueOrDefault(orderId, "").Trim();
+        var result = await OrderService.ConfirmPickupAsync(orderId, CurrentUser.CurrentUser.Id, code);
+        if (!result.Success)
+        {
+            _errors[orderId] = result.Error switch
+            {
+                PickupConfirmError.CodeMismatch => "Code doesn't match.",
+                PickupConfirmError.NotConfirmed => "Not ready for pickup yet.",
+                _ => "Couldn't confirm pickup.",
+            };
+            return;
+        }
+        await Load();
+    }
+
+    private async void OnUserChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        CurrentUser.OnChange -= OnUserChanged;
+    }
+}

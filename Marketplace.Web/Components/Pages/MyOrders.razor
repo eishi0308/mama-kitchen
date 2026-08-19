@@ -1,0 +1,77 @@
+@page "/orders"
+@inject IOrderService OrderService
+@inject CurrentUserService CurrentUser
+@implements IDisposable
+
+<PageTitle>My orders — Batch</PageTitle>
+
+<h1 style="font-size:var(--fs-xl); margin-bottom:var(--space-4);">🧾 My orders</h1>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <p class="text-muted">Pick a user in the sidebar first.</p>
+}
+else if (_orders is null)
+{
+    <div class="skeleton" style="height:80px;"></div>
+}
+else if (_orders.Count == 0)
+{
+    <div class="empty-state">
+        <div class="empty-state-emoji">🧾</div>
+        <h3>No orders yet</h3>
+        <p>Reserve a homemade meal and it'll show up here.</p>
+        <a class="btn btn-primary" href="/">Browse food nearby</a>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-column gap-2">
+        @foreach (var o in _orders)
+        {
+            <a href="/orders/@o.Id" class="surface-card p-3 text-decoration-none text-dark d-flex align-items-center gap-3 order-row">
+                <span style="font-size:1.8rem;">@o.FoodDrop?.ImageEmoji</span>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">@o.FoodDrop?.Title × @o.Quantity</div>
+                    <div class="text-muted small">@o.CreatedAt.ToLocalTime().ToString("d MMM, h:mm tt")</div>
+                </div>
+                <span class="badge-pill @StatusBadgeClass(o.Status)">@o.Status</span>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private List<Order>? _orders;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        if (CurrentUser.CurrentUser is not null)
+            _orders = await OrderService.GetForBuyerAsync(CurrentUser.CurrentUser.Id);
+    }
+
+    private static string StatusBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Collected => "badge-success",
+        OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready => "badge-info",
+        OrderStatus.PendingPayment => "badge-urgent",
+        _ => "badge-sold-out",
+    };
+
+    private async void OnUserChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        CurrentUser.OnChange -= OnUserChanged;
+    }
+}

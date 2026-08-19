@@ -1,0 +1,204 @@
+@page "/orders/{Id:int}"
+@inject IOrderService OrderService
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+<PageTitle>Order — Batch</PageTitle>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <p class="text-muted">Pick a user in the sidebar first.</p>
+}
+else if (_loaded && _order is null)
+{
+    <div class="empty-state">
+        <div class="empty-state-emoji">🔍</div>
+        <h3>Order not found</h3>
+        <p>Either it doesn't exist, or it's not one of yours.</p>
+    </div>
+}
+else if (_order is null)
+{
+    <div class="skeleton" style="height:280px; max-width:560px;"></div>
+}
+else
+{
+    var order = _order;
+    var isSeller = order.FoodDrop?.SellerId == CurrentUser.CurrentUser.Id;
+
+    <div class="surface-card p-4 fade-in" style="max-width:560px;">
+        @if (!isSeller)
+        {
+            @switch (order.Status)
+            {
+                case OrderStatus.Confirmed or OrderStatus.Preparing:
+                    <h1 style="font-size:var(--fs-xl);">Confirmed ✓</h1>
+                    <p class="text-muted">@order.FoodDrop?.Seller?.Name is preparing your meal.</p>
+                    break;
+                case OrderStatus.Ready:
+                    <h1 style="font-size:var(--fs-xl);">Your meal is ready</h1>
+                    <p class="text-muted">Head over any time in your pickup window.</p>
+                    break;
+                case OrderStatus.Collected:
+                    <h1 style="font-size:var(--fs-xl);">Collected ✓</h1>
+                    <p class="text-muted">Enjoy your meal!</p>
+                    break;
+                default:
+                    <h1 style="font-size:var(--fs-xl);">Order @order.Status</h1>
+                    break;
+            }
+        }
+        else
+        {
+            <h1 style="font-size:var(--fs-xl);">Order from @order.Buyer?.Name</h1>
+            <p class="text-muted">@order.FoodDrop?.Title × @order.Quantity — status: @order.Status</p>
+        }
+
+        <div class="status-track my-3">
+            @foreach (var step in new[] { OrderStatus.Confirmed, OrderStatus.Preparing, OrderStatus.Ready, OrderStatus.Collected })
+            {
+                <span class="status-dot @DotClass(step, order.Status)"></span>
+            }
+        </div>
+
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <span style="font-size:2.2rem;">@order.FoodDrop?.ImageEmoji</span>
+            <div>
+                <div class="fw-bold">@order.FoodDrop?.Title × @order.Quantity</div>
+                <div class="text-muted small">$@order.TotalAmount.ToString("0.00") total</div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <div class="text-muted small mb-1">PICKUP</div>
+            <div>@order.FoodDrop?.PickupWindowStart.ToLocalTime().ToString("ddd d MMM, h:mm tt")–@order.FoodDrop?.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")</div>
+            @if (order.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready or OrderStatus.Collected)
+            {
+                <div class="fw-bold">@order.FoodDrop?.PickupLocation?.ExactAddress</div>
+                <div class="text-muted small">@order.FoodDrop?.PickupLocation?.Instructions</div>
+            }
+        </div>
+
+        @if (!isSeller)
+        {
+            @if (order.Status != OrderStatus.Collected)
+            {
+                <div class="text-center my-4">
+                    <div class="text-muted small mb-2">SHOW THIS CODE AT PICKUP</div>
+                    <div class="pickup-code">@order.PickupCode</div>
+                </div>
+                <p class="text-muted small">Can't scan or find your cook? They can also confirm your pickup manually with this code.</p>
+            }
+        }
+        else if (order.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready)
+        {
+            <div class="surface-card p-3" style="background:var(--color-surface-alt); border:none;">
+                <div class="text-muted small mb-2">ENTER THE BUYER'S PICKUP CODE</div>
+                <div class="d-flex gap-2">
+                    <input class="form-control" style="max-width:140px; font-size:var(--fs-lg); letter-spacing:0.1em;" maxlength="4"
+                           @bind="_codeInput" @bind:event="oninput" placeholder="0000" />
+                    <button class="btn btn-primary" @onclick="ConfirmPickup">Confirm pickup</button>
+                </div>
+                @if (_pickupError is not null)
+                {
+                    <p class="text-danger small mt-2 mb-0">@_pickupError</p>
+                }
+            </div>
+        }
+        else if (order.Status == OrderStatus.Collected)
+        {
+            <div class="badge-pill badge-success p-2 d-inline-block">$@order.TotalAmount.ToString("0.00") added to your balance</div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Order? _order;
+    private bool _loaded;
+    private string _codeInput = "";
+    private string? _pickupError;
+    private PeriodicTimer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Must subscribe, not just read CurrentUser.CurrentUser once: on a
+        // fresh reload, Blazor Server's prerender pass runs before the
+        // signed-in user resolves from localStorage (see
+        // CurrentUserService.InitializeAsync). Every other page re-renders
+        // once NavMenu resolves it via this event; without the subscription
+        // here, a refreshed order page could get permanently stuck showing
+        // "pick a user" even though the sidebar correctly shows you're signed in.
+        CurrentUser.OnChange += OnUserChanged;
+        await Load();
+        // Light polling so a seller marking the order Ready/Collected on their
+        // own screen is reflected here without the buyer refreshing manually.
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        _ = PollAsync();
+    }
+
+    private async void OnUserChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task PollAsync()
+    {
+        try
+        {
+            while (_timer is not null && await _timer.WaitForNextTickAsync())
+            {
+                await Load();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    private async Task Load()
+    {
+        if (CurrentUser.CurrentUser is null) { _loaded = true; return; }
+        _order = await OrderService.GetByIdAsync(Id, CurrentUser.CurrentUser.Id);
+        _loaded = true;
+    }
+
+    private string DotClass(OrderStatus step, OrderStatus current)
+    {
+        var order = new[] { OrderStatus.Confirmed, OrderStatus.Preparing, OrderStatus.Ready, OrderStatus.Collected };
+        var stepIdx = Array.IndexOf(order, step);
+        var currentIdx = Array.IndexOf(order, current);
+        if (currentIdx < 0) return "";
+        if (stepIdx < currentIdx) return "done";
+        if (stepIdx == currentIdx) return current == OrderStatus.Collected ? "done" : "current";
+        return "";
+    }
+
+    private async Task ConfirmPickup()
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _pickupError = null;
+        var result = await OrderService.ConfirmPickupAsync(Id, CurrentUser.CurrentUser.Id, _codeInput.Trim());
+        if (!result.Success)
+        {
+            _pickupError = result.Error switch
+            {
+                PickupConfirmError.CodeMismatch => "That code doesn't match — ask the buyer to double check.",
+                PickupConfirmError.NotConfirmed => "This order isn't ready for pickup yet.",
+                _ => "Couldn't confirm this pickup.",
+            };
+            return;
+        }
+        await Load();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        CurrentUser.OnChange -= OnUserChanged;
+        _timer?.Dispose();
+        _timer = null;
+        await ValueTask.CompletedTask;
+    }
+}
