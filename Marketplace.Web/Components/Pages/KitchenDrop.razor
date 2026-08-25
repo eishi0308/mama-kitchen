@@ -1,0 +1,452 @@
+@page "/kitchen/drops/{Id:int}"
+@inject IOrderService OrderService
+@inject IFoodDropService FoodDropService
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+<PageTitle>@(_board?.Drop.Title ?? "Food drop") — Batch</PageTitle>
+
+<a class="back-link" href="/kitchen"><Icon Name="arrow-left" Size="15" /> Your kitchen</a>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <p class="text-muted">Pick a user in the sidebar first.</p>
+}
+else if (_loaded && _board is null)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="magnifying-glass" Size="26" /></div>
+        <h3>Food drop not found</h3>
+        <p>Either it doesn't exist, or it isn't one of yours.</p>
+        <a class="btn btn-outline-secondary" href="/kitchen">Back to your kitchen</a>
+    </div>
+}
+else if (_board is null)
+{
+    <div class="skeleton mb-3" style="height:120px;"></div>
+    <div class="skeleton" style="height:240px;"></div>
+}
+else
+{
+    var drop = _board.Drop;
+    var closed = DateTime.UtcNow >= drop.OrderDeadline;
+    var windowOver = DateTime.UtcNow >= drop.PickupWindowEnd;
+
+    <div class="page-header">
+        <div class="d-flex gap-3 align-items-start">
+            <span class="kitchen-emoji" style="font-size:2.4rem;">@drop.ImageEmoji</span>
+            <div>
+                <h1>@drop.Title</h1>
+                <div class="page-sub">
+                    @drop.PickupWindowStart.ToLocalTime().ToString("ddd d MMM")
+                    · pickup @drop.PickupWindowStart.ToLocalTime().ToString("h:mm tt")–@drop.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")
+                    · @drop.PickupLocation?.Label
+                </div>
+                <div class="mt-2 d-flex gap-2 flex-wrap">
+                    <span class="badge-pill @StageBadgeClass(drop.Status)">@StageLabel(drop.Status)</span>
+                    <span class="badge-pill badge-info">$@drop.Price.ToString("0.##") per portion</span>
+                    @if (!closed && drop.Status == FoodDropStatus.Published)
+                    {
+                        <span class="badge-pill badge-urgent">Orders close @RelativeTime(drop.OrderDeadline)</span>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="page-header-actions">
+            @if (drop.Status is not (FoodDropStatus.Cancelled or FoodDropStatus.Completed))
+            {
+                <a class="btn btn-outline-secondary" href="/kitchen/drops/@drop.Id/edit"><Icon Name="pencil" Size="15" /> Edit</a>
+            }
+            <a class="btn btn-outline-secondary" href="/food/@drop.Id"><Icon Name="magnifying-glass" Size="15" /> Buyer's view</a>
+        </div>
+    </div>
+
+    <div class="stat-grid mb-4">
+        <StatTile Label="Portions to cook" Value="@_board.PortionsSold.ToString()" IconName="flame"
+                  Hint="@($"of {drop.PortionsTotal} offered · {drop.PortionsRemaining} still available")" />
+        <StatTile Label="To hand over" Value="@_board.AwaitingPickup.ToString()" IconName="ticket"
+                  Hint="@(_board.AwaitingPickup == 0 ? "Nothing waiting" : "Paid, not yet collected")" />
+        <StatTile Label="Collected" Value="@_board.CollectedOrders.ToString()" IconName="check-circle" />
+        <StatTile Label="You keep" Value="@($"${NetOf(_board.GrossRevenue):0.00}")" IconName="wallet"
+                  Hint="@($"${_board.GrossRevenue:0.00} gross − 10% fee")" />
+    </div>
+
+    @* ---- Stage controls: the batch's whole lifecycle in one row ---- *@
+    @if (drop.Status != FoodDropStatus.Cancelled)
+    {
+        <div class="surface-card p-4 mb-4">
+            <h2 class="form-section-title" style="font-size:var(--fs-base);">Batch status</h2>
+            <p class="form-section-hint mb-3">
+                Moving the batch on updates every buyer's order tracker at the same time —
+                they see "Cooking" and "Ready" the moment you tap it.
+            </p>
+            <div class="d-flex gap-2 flex-wrap">
+                @if (drop.Status == FoodDropStatus.Published)
+                {
+                    <button class="btn btn-outline-secondary" disabled="@_busy" @onclick="() => SetStage(FoodDropStatus.OrderingClosed)">
+                        <Icon Name="lock" Size="15" /> Close orders early
+                    </button>
+                }
+                @if (drop.Status is FoodDropStatus.Published or FoodDropStatus.OrderingClosed)
+                {
+                    <button class="btn btn-primary" disabled="@_busy" @onclick="() => SetStage(FoodDropStatus.Preparing)">
+                        <Icon Name="flame" Size="15" /> Start cooking
+                    </button>
+                }
+                @if (drop.Status == FoodDropStatus.Preparing)
+                {
+                    <button class="btn btn-primary" disabled="@_busy" @onclick="() => SetStage(FoodDropStatus.Ready)">
+                        <Icon Name="check-circle" Size="15" /> Ready for pickup
+                    </button>
+                }
+                @if (drop.Status == FoodDropStatus.Ready)
+                {
+                    <button class="btn btn-outline-secondary" disabled="@(_busy || _board.AwaitingPickup > 0)"
+                            title="@(_board.AwaitingPickup > 0 ? "Some orders still haven't been collected" : "")"
+                            @onclick="() => SetStage(FoodDropStatus.Completed)">
+                        <Icon Name="check" Size="15" /> Mark batch done
+                    </button>
+                }
+                @if (drop.Status is not FoodDropStatus.Completed)
+                {
+                    <button class="btn btn-outline-danger ms-auto" disabled="@_busy" @onclick="() => _showCancel = !_showCancel">
+                        <Icon Name="x-circle" Size="15" /> Cancel this drop
+                    </button>
+                }
+            </div>
+
+            @if (_showCancel)
+            {
+                <div class="callout callout-danger mt-3 d-block">
+                    <div class="d-flex gap-3 mb-2">
+                        <Icon Name="warning" Size="18" />
+                        <div>
+                            <strong>Cancelling refunds everyone.</strong>
+                            @if (_board.AwaitingPickup > 0)
+                            {
+                                <text> @_board.AwaitingPickup @(_board.AwaitingPickup == 1 ? "buyer is" : "buyers are") waiting on this food — they'll be refunded in full immediately.</text>
+                            }
+                            else
+                            {
+                                <text> Nobody is currently waiting on this batch.</text>
+                            }
+                        </div>
+                    </div>
+                    <input class="form-control mb-2" placeholder="Tell buyers why (they'll see this)" @bind="_cancelReason" />
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="CancelDrop">
+                            Yes, cancel and refund
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => _showCancel = false">Keep it</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="callout callout-danger mb-4">
+            <Icon Name="x-circle" Size="18" />
+            <div><strong>This drop was cancelled.</strong> Every live order on it was refunded in full.</div>
+        </div>
+    }
+
+    @* ---- Handover queue ---- *@
+    <h2 class="section-heading">Orders <span class="text-muted" style="font-size:var(--fs-base);">(@_board.Orders.Count)</span></h2>
+
+    @if (_board.Orders.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon"><Icon Name="receipt" Size="26" /></div>
+            <h3>No orders yet</h3>
+            <p>
+                @(closed
+                    ? "Orders closed without any reservations on this batch."
+                    : "Orders are still open — share your cook page to bring people in.")
+            </p>
+            @if (!closed)
+            {
+                <a class="btn btn-outline-secondary mt-2" href="/cooks/@CurrentUser.CurrentUser.Id">View your cook page</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="surface-card p-4">
+            @foreach (var o in _board.Orders)
+            {
+                var actionable = o.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready;
+                <div class="handover-row">
+                    <span class="handover-avatar">@o.Buyer?.Avatar</span>
+                    <div class="flex-grow-1" style="min-width:160px;">
+                        <div class="fw-bold">@o.Buyer?.Name · @o.Quantity @(o.Quantity == 1 ? "portion" : "portions")</div>
+                        <div class="kitchen-meta">
+                            <span class="money">$@o.TotalAmount.ToString("0.00")</span>
+                            · ordered @o.CreatedAt.ToLocalTime().ToString("d MMM, h:mm tt")
+                            @if (o.Status == OrderStatus.Collected && o.CollectedAt is DateTime c)
+                            {
+                                <text> · collected @c.ToLocalTime().ToString("h:mm tt")</text>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(o.CancellationReason) && o.Status is OrderStatus.SellerCancelled or OrderStatus.Refunded or OrderStatus.BuyerNoShow)
+                        {
+                            <div class="kitchen-meta fst-italic">@o.CancellationReason</div>
+                        }
+                    </div>
+                    <span class="badge-pill @OrderBadgeClass(o.Status)">@OrderLabel(o.Status)</span>
+
+                    @if (actionable)
+                    {
+                        <div class="d-flex gap-2 align-items-start flex-wrap" style="flex-basis:100%;">
+                            <input class="form-control form-control-sm code-input" maxlength="4" inputmode="numeric"
+                                   placeholder="0000" aria-label="@($"Pickup code from {o.Buyer?.Name}")"
+                                   @bind="_codeInputs[o.Id]" />
+                            <button class="btn btn-sm btn-primary" disabled="@_busy" @onclick="() => ConfirmPickup(o.Id)">
+                                <Icon Name="check" Size="15" /> Confirm pickup
+                            </button>
+
+                            @if (windowOver)
+                            {
+                                @* Only offered once the window has closed — before
+                                   that the buyer can still legitimately turn up. *@
+                                <button class="btn btn-sm btn-outline-secondary" disabled="@_busy" @onclick="() => MarkNoShow(o.Id)">
+                                    Didn't show
+                                </button>
+                            }
+
+                            <button class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="() => ToggleRefund(o.Id)">
+                                Cancel &amp; refund
+                            </button>
+                        </div>
+
+                        @if (_refundingOrderId == o.Id)
+                        {
+                            <div class="callout callout-warn d-block" style="flex-basis:100%;">
+                                <div class="mb-2">
+                                    Refunding <strong>@o.Buyer?.Name</strong> $@o.TotalAmount.ToString("0.00") in full and putting
+                                    @o.Quantity @(o.Quantity == 1 ? "portion" : "portions") back up for sale.
+                                </div>
+                                <input class="form-control form-control-sm mb-2" placeholder="Reason (the buyer sees this)" @bind="_refundReason" />
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="() => CancelOrder(o.Id)">Refund in full</button>
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => _refundingOrderId = null">Never mind</button>
+                                </div>
+                            </div>
+                        }
+                    }
+
+                    @if (_errors.TryGetValue(o.Id, out var err))
+                    {
+                        <div class="text-danger small" style="flex-basis:100%;">@err</div>
+                    }
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private DropOrderBoard? _board;
+    private bool _loaded;
+    private bool _busy;
+    private bool _showCancel;
+    private string _cancelReason = "";
+    private int? _refundingOrderId;
+    private string _refundReason = "";
+    private readonly Dictionary<int, string> _codeInputs = new();
+    private readonly Dictionary<int, string> _errors = new();
+    private PeriodicTimer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        await Load();
+
+        // A cook has this open on their phone during a pickup window while
+        // buyers are still reserving — poll so the queue doesn't go stale.
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(20));
+        _ = PollAsync();
+    }
+
+    protected override async Task OnParametersSetAsync() => await Load();
+
+    private async Task Load()
+    {
+        if (CurrentUser.CurrentUser is null) { _loaded = true; return; }
+        _board = await OrderService.GetDropBoardAsync(Id, CurrentUser.CurrentUser.Id);
+        _loaded = true;
+
+        // @bind against a Dictionary indexer throws KeyNotFoundException on its
+        // first read if the key isn't already present, and an unhandled
+        // exception here kills the whole Blazor circuit.
+        if (_board is not null)
+        {
+            foreach (var o in _board.Orders) _codeInputs.TryAdd(o.Id, "");
+        }
+    }
+
+    private async Task PollAsync()
+    {
+        try
+        {
+            while (_timer is not null && await _timer.WaitForNextTickAsync())
+            {
+                // Don't yank the board out from under an open confirm dialog.
+                if (_busy || _refundingOrderId is not null || _showCancel) continue;
+                await Load();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    private static decimal NetOf(decimal gross) => Marketplace.Web.Services.SellerService.NetOf(gross);
+
+    private async Task SetStage(FoodDropStatus stage)
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _busy = true;
+        await FoodDropService.SetStageAsync(Id, CurrentUser.CurrentUser.Id, stage);
+        await Load();
+        _busy = false;
+    }
+
+    private async Task CancelDrop()
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _busy = true;
+        await FoodDropService.CancelAsync(Id, CurrentUser.CurrentUser.Id, _cancelReason);
+        _showCancel = false;
+        _cancelReason = "";
+        await Load();
+        _busy = false;
+    }
+
+    private void ToggleRefund(int orderId)
+    {
+        _refundingOrderId = _refundingOrderId == orderId ? null : orderId;
+        _refundReason = "";
+    }
+
+    private async Task CancelOrder(int orderId)
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _busy = true;
+        _errors.Remove(orderId);
+        var result = await OrderService.CancelBySellerAsync(orderId, CurrentUser.CurrentUser.Id, _refundReason);
+        if (!result.Success) _errors[orderId] = Describe(result.Error);
+        _refundingOrderId = null;
+        await Load();
+        _busy = false;
+    }
+
+    private async Task MarkNoShow(int orderId)
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _busy = true;
+        _errors.Remove(orderId);
+        var result = await OrderService.MarkNoShowAsync(orderId, CurrentUser.CurrentUser.Id);
+        if (!result.Success) _errors[orderId] = Describe(result.Error);
+        await Load();
+        _busy = false;
+    }
+
+    private async Task ConfirmPickup(int orderId)
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _busy = true;
+        _errors.Remove(orderId);
+        var code = _codeInputs.GetValueOrDefault(orderId, "").Trim();
+        var result = await OrderService.ConfirmPickupAsync(orderId, CurrentUser.CurrentUser.Id, code);
+        if (!result.Success)
+        {
+            _errors[orderId] = result.Error switch
+            {
+                PickupConfirmError.CodeMismatch => "That code doesn't match — ask the buyer to read it out again.",
+                PickupConfirmError.NotConfirmed => "This order isn't ready for pickup.",
+                _ => "Couldn't confirm this pickup.",
+            };
+        }
+        else
+        {
+            _codeInputs[orderId] = "";
+        }
+        await Load();
+        _busy = false;
+    }
+
+    private static string Describe(OrderActionError? error) => error switch
+    {
+        OrderActionError.PickupWindowNotOver => "You can only mark a no-show once the pickup window has closed.",
+        OrderActionError.WrongStatus => "That's not possible for this order any more.",
+        OrderActionError.RefundFailed => "The refund didn't go through — nothing was changed.",
+        OrderActionError.NotYours => "That order isn't yours.",
+        _ => "Something went wrong.",
+    };
+
+    private static string StageLabel(FoodDropStatus s) => s switch
+    {
+        FoodDropStatus.Published => "Taking orders",
+        FoodDropStatus.OrderingClosed => "Orders closed",
+        FoodDropStatus.Preparing => "Cooking",
+        FoodDropStatus.Ready => "Ready for pickup",
+        FoodDropStatus.Completed => "Done",
+        FoodDropStatus.Cancelled => "Cancelled",
+        _ => s.ToString(),
+    };
+
+    private static string StageBadgeClass(FoodDropStatus s) => s switch
+    {
+        FoodDropStatus.Published => "badge-success",
+        FoodDropStatus.Preparing or FoodDropStatus.Ready => "badge-urgent",
+        FoodDropStatus.Cancelled => "badge-sold-out",
+        _ => "badge-info",
+    };
+
+    private static string OrderLabel(OrderStatus s) => s switch
+    {
+        OrderStatus.PendingPayment => "Unpaid",
+        OrderStatus.Confirmed => "Paid",
+        OrderStatus.Preparing => "Cooking",
+        OrderStatus.Ready => "Ready",
+        OrderStatus.Collected => "Collected",
+        OrderStatus.BuyerNoShow => "No-show",
+        OrderStatus.SellerCancelled => "You cancelled",
+        OrderStatus.Refunded => "Refunded",
+        _ => s.ToString(),
+    };
+
+    private static string OrderBadgeClass(OrderStatus s) => s switch
+    {
+        OrderStatus.Collected => "badge-success",
+        OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready => "badge-info",
+        OrderStatus.PendingPayment or OrderStatus.BuyerNoShow => "badge-urgent",
+        _ => "badge-sold-out",
+    };
+
+    private static string RelativeTime(DateTime utc)
+    {
+        var mins = (int)(utc - DateTime.UtcNow).TotalMinutes;
+        if (mins <= 0) return "now";
+        if (mins < 60) return $"in {mins} min";
+        if (mins < 60 * 24) return $"in {mins / 60}h {mins % 60}m";
+        return utc.ToLocalTime().ToString("ddd d MMM");
+    }
+
+    private async void OnUserChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        CurrentUser.OnChange -= OnUserChanged;
+        _timer?.Dispose();
+        _timer = null;
+        await ValueTask.CompletedTask;
+    }
+}

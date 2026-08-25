@@ -14,6 +14,7 @@ builder.Services.AddScoped<IFoodDropService, FoodDropService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IFavoriteService, FavoriteService>();
+builder.Services.AddScoped<ISellerService, SellerService>();
 builder.Services.AddScoped<CurrentUserService>();
 
 // Mocked Stripe Connect-shaped payment gateway — see IPaymentGateway for the

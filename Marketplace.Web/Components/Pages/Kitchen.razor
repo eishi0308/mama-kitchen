@@ -1,0 +1,313 @@
+@page "/kitchen"
+@page "/my-food-drops"
+@inject IFoodDropService FoodDropService
+@inject ISellerService Sellers
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Nav
+@implements IDisposable
+
+@* /my-food-drops is kept as an alias so links and bookmarks from the previous
+   build still land somewhere real. *@
+
+<PageTitle>Your kitchen — Batch</PageTitle>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="user" Size="26" /></div>
+        <h3>Pick who you are first</h3>
+        <p>Choose a demo user in the sidebar to open their kitchen.</p>
+    </div>
+}
+else if (!CurrentUser.IsSeller)
+{
+    @* A buyer-only account landing here used to hit a dead end. Now it's the
+       top of the seller funnel instead. *@
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="chef-hat" Size="26" /></div>
+        <h3>@CurrentUser.CurrentUser.Name doesn't have a kitchen yet</h3>
+        <p>Set one up in about a minute and post your first food drop.</p>
+        <a class="btn btn-primary mt-2" href="/sell/start">Start selling</a>
+    </div>
+}
+else if (_summary is null)
+{
+    <div class="skeleton mb-3" style="height:34px; max-width:320px;"></div>
+    <div class="stat-grid mb-4">
+        @for (var i = 0; i < 4; i++)
+        {
+            <div class="skeleton" style="height:92px;"></div>
+        }
+    </div>
+    <div class="skeleton" style="height:120px;"></div>
+}
+else
+{
+    var profile = CurrentUser.CurrentUser.SellerProfile!;
+
+    <div class="page-header">
+        <div>
+            <h1>@Greeting(), @CurrentUser.CurrentUser.Name</h1>
+            <div class="page-sub">@ActionSummary()</div>
+        </div>
+        <div class="page-header-actions">
+            <a class="btn btn-outline-secondary" href="/cooks/@CurrentUser.CurrentUser.Id">
+                <Icon Name="magnifying-glass" Size="16" /> View public page
+            </a>
+            <a class="btn btn-primary" href="/post"><Icon Name="plus" Size="16" /> New food drop</a>
+        </div>
+    </div>
+
+    @if (profile.VerificationStatus != VerificationStatus.Verified)
+    {
+        <div class="callout callout-warn mb-4">
+            <Icon Name="shield-check" Size="18" />
+            <div>
+                <strong>Verification @profile.VerificationStatus.ToString().ToLower().</strong>
+                Buyers can see this on your cook page. You can post and sell while it's pending —
+                what registration you actually need depends on your council, your state and what you cook.
+            </div>
+        </div>
+    }
+
+    <div class="stat-grid mb-5">
+        <StatTile Label="To hand over" Value="@_summary.AwaitingPickupTotal.ToString()" IconName="ticket"
+                  Hint="@(_summary.AwaitingPickupTotal == 0 ? "Nothing waiting" : "Paid, not yet collected")" />
+        <StatTile Label="Cooking today" Value="@_summary.Today.Sum(t => t.PortionsToCook).ToString()" IconName="flame"
+                  Hint="@($"across {_summary.Today.Count} {(_summary.Today.Count == 1 ? "batch" : "batches")}")" />
+        <StatTile Label="Balance" Value="@($"${_summary.PendingPayout:0.00}")" IconName="wallet"
+                  Hint="After the 10% Batch fee" />
+        <StatTile Label="Rating" Value="@(profile.RatingAverage?.ToString("0.0") ?? "—")" IconName="star"
+                  Hint="@(profile.RatingAverage is null ? "No reviews yet" : $"{profile.CompletedOrders} orders collected")" />
+    </div>
+
+    @if (_summary.Today.Count > 0)
+    {
+        <h2 class="section-heading">Today</h2>
+        <div class="d-flex flex-column gap-3 mb-5">
+            @foreach (var item in _summary.Today)
+            {
+                @RenderDropRow(item, showStageActions: true)
+            }
+        </div>
+    }
+
+    @if (_summary.Upcoming.Count > 0)
+    {
+        <h2 class="section-heading">Coming up</h2>
+        <div class="d-flex flex-column gap-3 mb-5">
+            @foreach (var item in _summary.Upcoming)
+            {
+                @RenderDropRow(item, showStageActions: false)
+            }
+        </div>
+    }
+
+    @if (_summary.Today.Count == 0 && _summary.Upcoming.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon"><Icon Name="chef-hat" Size="26" /></div>
+            <h3>@(_summary.Past.Count == 0 ? "You haven't posted a food drop yet" : "Nothing scheduled")</h3>
+            <p>
+                @(_summary.Past.Count == 0
+                    ? "Post a batch, neighbours reserve portions, you cook exactly what's needed."
+                    : "Your last batch is done. Post another one when you're ready to cook.")
+            </p>
+            <a class="btn btn-primary mt-2" href="/post">
+                @(_summary.Past.Count == 0 ? "Post your first food drop" : "Post a food drop")
+            </a>
+        </div>
+    }
+
+    @if (_summary.Past.Count > 0)
+    {
+        <h2 class="section-heading">Finished</h2>
+        <div class="d-flex flex-column gap-2">
+            @foreach (var item in _summary.Past.Take(_showAllPast ? _summary.Past.Count : 5))
+            {
+                var d = item.Drop;
+                <a class="kitchen-row" href="/kitchen/drops/@d.Id">
+                    <div class="kitchen-row-head">
+                        <span class="kitchen-emoji">@d.ImageEmoji</span>
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="kitchen-title">@d.Title</div>
+                            <div class="kitchen-meta">
+                                @d.PickupWindowStart.ToLocalTime().ToString("ddd d MMM")
+                                · @item.PortionsSold of @d.PortionsTotal sold
+                                @if (d.Status == FoodDropStatus.Cancelled)
+                                {
+                                    <span class="badge-pill badge-sold-out ms-1">Cancelled</span>
+                                }
+                                else if (item.AwaitingPickup > 0)
+                                {
+                                    <span class="badge-pill badge-urgent ms-1">@item.AwaitingPickup uncollected</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="kitchen-figure">
+                            <div class="kitchen-figure-main money">$@item.NetRevenue.ToString("0.00")</div>
+                            <div class="kitchen-meta">you kept</div>
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+        @if (_summary.Past.Count > 5)
+        {
+            <button class="btn btn-link px-0 mt-2" @onclick="() => _showAllPast = !_showAllPast">
+                @(_showAllPast ? "Show fewer" : $"Show all {_summary.Past.Count} finished batches")
+            </button>
+        }
+    }
+}
+
+@code {
+    private KitchenSummary? _summary;
+    private bool _showAllPast;
+    private int? _busyDropId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        if (CurrentUser.CurrentUser is null || !CurrentUser.IsSeller) { _summary = null; return; }
+        _summary = await FoodDropService.GetKitchenSummaryAsync(CurrentUser.CurrentUser.Id);
+    }
+
+    private static string Greeting()
+    {
+        var hour = DateTime.Now.Hour;
+        return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    }
+
+    private string ActionSummary()
+    {
+        if (_summary is null) return "";
+        if (_summary.ActionsNeeded == 0 && _summary.Today.Count == 0)
+            return "Nothing needs you right now.";
+        if (_summary.ActionsNeeded == 0)
+            return $"{_summary.Today.Count} {(_summary.Today.Count == 1 ? "batch" : "batches")} today, nothing waiting on you yet.";
+        return $"{_summary.ActionsNeeded} {(_summary.ActionsNeeded == 1 ? "thing needs" : "things need")} you today.";
+    }
+
+    /// One batch row. The stage buttons only appear on today's batches —
+    /// "Start cooking" on something three days out is noise.
+    private RenderFragment RenderDropRow(SellerDropSummary item, bool showStageActions) => __builder =>
+    {
+        var d = item.Drop;
+        var pct = d.PortionsTotal == 0 ? 0 : item.PortionsSold * 100 / d.PortionsTotal;
+        var closed = DateTime.UtcNow >= d.OrderDeadline;
+
+        <div class="surface-card p-4">
+            <div class="kitchen-row-head mb-3">
+                <span class="kitchen-emoji">@d.ImageEmoji</span>
+                <div class="flex-grow-1 min-width-0">
+                    <a href="/kitchen/drops/@d.Id" class="kitchen-title text-decoration-none" style="color:inherit;">@d.Title</a>
+                    <div class="kitchen-meta">
+                        Pickup @d.PickupWindowStart.ToLocalTime().ToString("h:mm tt")–@d.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")
+                        · @(closed ? "orders closed" : $"orders close {RelativeTime(d.OrderDeadline)}")
+                    </div>
+                </div>
+                <div class="kitchen-figure">
+                    <span class="badge-pill @StageBadgeClass(d.Status)">@StageLabel(d.Status)</span>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-baseline mb-1">
+                <span class="kitchen-meta">
+                    <strong>@item.PortionsSold</strong> of @d.PortionsTotal portions reserved
+                    @if (item.AwaitingPickup > 0)
+                    {
+                        <text> · <strong>@item.AwaitingPickup</strong> to hand over</text>
+                    }
+                </span>
+                <span class="kitchen-meta money">$@item.NetRevenue.ToString("0.00") after fees</span>
+            </div>
+            <div class="progress-track mb-3">
+                <div class="progress-fill @(pct >= 100 ? "full" : "")" style="width:@(Math.Min(pct, 100))%;"></div>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+                <a class="btn btn-sm btn-outline-secondary" href="/kitchen/drops/@d.Id">
+                    <Icon Name="list" Size="15" /> Manage @(item.AwaitingPickup > 0 ? $"({item.AwaitingPickup})" : "")
+                </a>
+
+                @if (showStageActions)
+                {
+                    @* Stage buttons drive both the batch and every live order on
+                       it, which is what makes the buyer's tracker move. *@
+                    @if (d.Status is FoodDropStatus.Published or FoodDropStatus.OrderingClosed)
+                    {
+                        <button class="btn btn-sm btn-primary" disabled="@(_busyDropId == d.Id)"
+                                @onclick="() => SetStage(d.Id, FoodDropStatus.Preparing)">
+                            <Icon Name="flame" Size="15" /> Start cooking
+                        </button>
+                    }
+                    else if (d.Status == FoodDropStatus.Preparing)
+                    {
+                        <button class="btn btn-sm btn-primary" disabled="@(_busyDropId == d.Id)"
+                                @onclick="() => SetStage(d.Id, FoodDropStatus.Ready)">
+                            <Icon Name="check-circle" Size="15" /> Ready for pickup
+                        </button>
+                    }
+                    else if (d.Status == FoodDropStatus.Ready && item.AwaitingPickup == 0)
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@(_busyDropId == d.Id)"
+                                @onclick="() => SetStage(d.Id, FoodDropStatus.Completed)">
+                            <Icon Name="check" Size="15" /> Mark batch done
+                        </button>
+                    }
+                }
+            </div>
+        </div>
+    };
+
+    private async Task SetStage(int dropId, FoodDropStatus stage)
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _busyDropId = dropId;
+        await FoodDropService.SetStageAsync(dropId, CurrentUser.CurrentUser.Id, stage);
+        await Load();
+        _busyDropId = null;
+    }
+
+    private static string StageLabel(FoodDropStatus status) => status switch
+    {
+        FoodDropStatus.Published => "Taking orders",
+        FoodDropStatus.OrderingClosed => "Orders closed",
+        FoodDropStatus.Preparing => "Cooking",
+        FoodDropStatus.Ready => "Ready for pickup",
+        FoodDropStatus.Completed => "Done",
+        FoodDropStatus.Cancelled => "Cancelled",
+        _ => status.ToString(),
+    };
+
+    private static string StageBadgeClass(FoodDropStatus status) => status switch
+    {
+        FoodDropStatus.Published => "badge-success",
+        FoodDropStatus.Preparing or FoodDropStatus.Ready => "badge-urgent",
+        FoodDropStatus.Cancelled => "badge-sold-out",
+        _ => "badge-info",
+    };
+
+    private static string RelativeTime(DateTime utc)
+    {
+        var mins = (int)(utc - DateTime.UtcNow).TotalMinutes;
+        if (mins <= 0) return "now";
+        if (mins < 60) return $"in {mins} min";
+        if (mins < 60 * 24) return $"in {mins / 60}h {mins % 60}m";
+        return utc.ToLocalTime().ToString("ddd d MMM, h:mm tt");
+    }
+
+    private async void OnUserChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => CurrentUser.OnChange -= OnUserChanged;
+}

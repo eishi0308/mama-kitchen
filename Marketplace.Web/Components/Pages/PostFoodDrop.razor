@@ -1,151 +1,387 @@
 @page "/post"
+@page "/kitchen/drops/{Id:int}/edit"
 @using Microsoft.EntityFrameworkCore
 @inject IFoodDropService FoodDropService
+@inject ISellerService Sellers
 @inject CurrentUserService CurrentUser
-@inject Marketplace.Web.Data.AppDbContext Db
 @inject NavigationManager Nav
+@implements IDisposable
 
-<PageTitle>Cook &amp; sell — Batch</PageTitle>
-
-<h1 style="font-size:var(--fs-xl); margin-bottom:var(--space-1);">What are you cooking?</h1>
-<p class="text-muted mb-4">Set it up once — buyers reserve a portion, you cook exactly what's needed.</p>
+<PageTitle>@(IsEdit ? "Edit food drop" : "Cook & sell") — Batch</PageTitle>
 
 @if (CurrentUser.CurrentUser is null)
 {
-    <p class="text-muted">Pick a user in the sidebar first.</p>
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="user" Size="26" /></div>
+        <h3>Pick who you are first</h3>
+        <p>Choose a demo user in the sidebar to post a food drop.</p>
+    </div>
 }
-else if (_sellerProfile is null)
+else if (!CurrentUser.IsSeller)
 {
+    @* This used to be a dead end telling buyers to go switch accounts. It's
+       now the entry point to onboarding — the one thing they actually need. *@
     <div class="empty-state">
         <div class="empty-state-icon"><Icon Name="chef-hat" Size="26" /></div>
-        <h3>No seller profile yet</h3>
-        <p>
-            Full seller onboarding (identity, food-business info, pickup locations) isn't built in this pass —
-            switch to one of the seeded cooks (Maya, Yuki, Minh, Ravi, Soo-jin, Amir) in the sidebar to try posting a food drop.
-        </p>
+        <h3>Set up your kitchen first</h3>
+        <p>It takes about a minute: where people collect from, and what you cook. Then you can post a batch.</p>
+        <a class="btn btn-primary mt-2" href="/sell/start">Start selling</a>
+    </div>
+}
+else if (IsEdit && _loadedForEdit && _editTarget is null)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="magnifying-glass" Size="26" /></div>
+        <h3>Food drop not found</h3>
+        <p>Either it doesn't exist, or it isn't one of yours.</p>
+        <a class="btn btn-outline-secondary" href="/kitchen">Back to your kitchen</a>
+    </div>
+}
+else if (_pickupLocations.Count == 0)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="map-pin" Size="26" /></div>
+        <h3>Add a pickup point first</h3>
+        <p>Buyers need somewhere to collect from before you can post a batch.</p>
+        <a class="btn btn-primary mt-2" href="/kitchen/profile">Add a pickup point</a>
     </div>
 }
 else
 {
-    <EditForm Model="_form" OnValidSubmit="Submit" class="col-md-7">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
+    @if (IsEdit)
+    {
+        <a class="back-link" href="/kitchen/drops/@Id"><Icon Name="arrow-left" Size="15" /> Back to this batch</a>
+    }
 
-        <div class="mb-3">
-            <label class="form-label">Dish name</label>
-            <InputText class="form-control" @bind-Value="_form.Title" placeholder="e.g. Thai Green Curry" />
+    @if (_isWelcome)
+    {
+        <div class="callout callout-success mb-4">
+            <Icon Name="check-circle" Size="18" />
+            <div>
+                <strong>Your kitchen is live.</strong> Post your first batch below — you can change anything about it
+                later, right up until someone reserves a portion.
+            </div>
         </div>
-        <div class="mb-3">
-            <label class="form-label">Description</label>
-            <InputTextArea class="form-control" rows="3" @bind-Value="_form.Description" />
-        </div>
+    }
 
-        <div class="row">
-            <div class="col-6 mb-3">
-                <label class="form-label">Cuisine</label>
-                <InputSelect class="form-select" @bind-Value="_form.CategoryId">
-                    @foreach (var c in _categories)
+    <div class="page-header">
+        <div>
+            <h1>@(IsEdit ? "Edit this food drop" : "What are you cooking?")</h1>
+            <div class="page-sub">
+                @(IsEdit
+                    ? "Changes show on the buyer's page immediately. Existing orders keep the price they paid."
+                    : "Set it up once — buyers reserve a portion, you cook exactly what's needed.")
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <EditForm Model="_form" OnValidSubmit="Submit">
+                <DataAnnotationsValidator />
+
+                <div class="form-section">
+                    <h2 class="form-section-title">The dish</h2>
+                    <p class="form-section-hint">What a buyer reads first.</p>
+
+                    <div class="mb-3">
+                        <label class="form-label">Dish name</label>
+                        <InputText class="form-control" @bind-Value="_form.Title" @bind-Value:after="Touch" placeholder="e.g. Thai Green Curry" />
+                        <ValidationMessage For="() => _form.Title" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <InputTextArea class="form-control" rows="3" @bind-Value="_form.Description" @bind-Value:after="Touch"
+                                       placeholder="What's in it, how it's cooked, what it comes with." />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-sm-8 mb-3">
+                            <label class="form-label">Cuisine</label>
+                            <InputSelect class="form-select" @bind-Value="_form.CategoryId" @bind-Value:after="Touch">
+                                @foreach (var c in _categories)
+                                {
+                                    <option value="@c.Id">@c.Icon @c.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="col-sm-4 mb-3">
+                            <label class="form-label">Photo stand-in</label>
+                            <InputText class="form-control" @bind-Value="_form.ImageEmoji" @bind-Value:after="Touch" />
+                            <div class="field-hint">An emoji, until photo upload exists.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2 class="form-section-title">Price and portions</h2>
+                    <p class="form-section-hint">
+                        Batch takes 10% of each collected order. You keep
+                        <strong class="money">$@NetPerPortion().ToString("0.00")</strong> per portion.
+                    </p>
+
+                    <div class="row">
+                        <div class="col-sm-6 mb-3">
+                            <label class="form-label">Price per portion (AUD)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <InputNumber class="form-control" @bind-Value="_form.Price" @bind-Value:after="Touch" step="0.5" />
+                            </div>
+                            <ValidationMessage For="() => _form.Price" />
+                        </div>
+                        <div class="col-sm-6 mb-3">
+                            <label class="form-label">Portions available</label>
+                            <InputNumber class="form-control" @bind-Value="_form.Portions" @bind-Value:after="Touch" />
+                            @if (IsEdit && _claimedPortions > 0)
+                            {
+                                <div class="field-hint">
+                                    @_claimedPortions already reserved — you can't go below that.
+                                </div>
+                            }
+                            <ValidationMessage For="() => _form.Portions" />
+                        </div>
+                    </div>
+
+                    @if (_form.Portions > 0 && _form.Price > 0)
                     {
-                        <option value="@c.Id">@c.Icon @c.Name</option>
+                        <div class="callout callout-info">
+                            <Icon Name="trend-up" Size="18" />
+                            <div>
+                                A full batch of @_form.Portions is
+                                <strong class="money">$@((_form.Price * _form.Portions).ToString("0.00"))</strong> gross —
+                                <strong class="money">$@(NetOf(_form.Price * _form.Portions).ToString("0.00"))</strong> to you after fees.
+                            </div>
+                        </div>
                     }
-                </InputSelect>
-            </div>
-            <div class="col-6 mb-3">
-                <label class="form-label">Emoji placeholder</label>
-                <InputText class="form-control" @bind-Value="_form.ImageEmoji" />
-            </div>
-        </div>
+                </div>
 
-        <div class="row">
-            <div class="col-4 mb-3">
-                <label class="form-label">Price / portion (AUD)</label>
-                <InputNumber class="form-control" @bind-Value="_form.Price" />
-            </div>
-            <div class="col-4 mb-3">
-                <label class="form-label">Portions available</label>
-                <InputNumber class="form-control" @bind-Value="_form.Portions" />
-            </div>
-            <div class="col-4 mb-3">
-                <label class="form-label">Orders close</label>
-                <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="_form.OrderDeadline" />
-            </div>
-        </div>
+                <div class="form-section">
+                    <h2 class="form-section-title">Timing</h2>
+                    <p class="form-section-hint">Orders close before you start cooking, so you only shop for what sold.</p>
 
-        <div class="row">
-            <div class="col-6 mb-3">
-                <label class="form-label">Pickup starts</label>
-                <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="_form.PickupStart" />
-            </div>
-            <div class="col-6 mb-3">
-                <label class="form-label">Pickup ends</label>
-                <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="_form.PickupEnd" />
-            </div>
-        </div>
+                    <div class="mb-3">
+                        <label class="form-label">Orders close</label>
+                        <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="_form.OrderDeadline" @bind-Value:after="Touch" />
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-6 mb-3">
+                            <label class="form-label">Pickup starts</label>
+                            <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="_form.PickupStart" @bind-Value:after="Touch" />
+                        </div>
+                        <div class="col-sm-6 mb-3">
+                            <label class="form-label">Pickup ends</label>
+                            <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="_form.PickupEnd" @bind-Value:after="Touch" />
+                        </div>
+                    </div>
 
-        <div class="mb-3">
-            <label class="form-label">Pickup location</label>
-            <InputSelect class="form-select" @bind-Value="_form.PickupLocationId">
-                @foreach (var loc in _pickupLocations)
+                    @if (TimingProblem() is string problem)
+                    {
+                        <div class="callout callout-warn">
+                            <Icon Name="warning" Size="18" />
+                            <div>@problem</div>
+                        </div>
+                    }
+                </div>
+
+                <div class="form-section">
+                    <h2 class="form-section-title">Pickup point</h2>
+                    <p class="form-section-hint">Buyers see the suburb up front; the exact address only after they've paid.</p>
+                    <InputSelect class="form-select" @bind-Value="_form.PickupLocationId" @bind-Value:after="Touch">
+                        @foreach (var loc in _pickupLocations)
+                        {
+                            <option value="@loc.Id">@loc.Label · @loc.Suburb</option>
+                        }
+                    </InputSelect>
+                    <div class="field-hint"><a href="/kitchen/profile">Manage your pickup points</a></div>
+                </div>
+
+                <div class="form-section">
+                    <h2 class="form-section-title">Ingredients and allergens</h2>
+                    <p class="form-section-hint">
+                        Allergens matter more here than anywhere else in the app — a buyer can't inspect your kitchen.
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label">Ingredients</label>
+                        <InputText class="form-control" @bind-Value="_form.Ingredients" @bind-Value:after="Touch" placeholder="Comma-separated" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Allergens</label>
+                        <InputText class="form-control" @bind-Value="_form.Allergens" @bind-Value:after="Touch" placeholder="e.g. Contains peanuts, gluten" />
+                        <div class="field-hint">Leave blank only if you're certain there are none to declare.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label d-block">Dietary labels</label>
+                        @foreach (DietaryLabel value in Enum.GetValues<DietaryLabel>())
+                        {
+                            @if (value != DietaryLabel.None)
+                            {
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="@value" checked="@_form.Dietary.HasFlag(value)"
+                                           @onchange="e => ToggleDietary(value, e.Value)" />
+                                    <label class="form-check-label" for="@value">@value</label>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                @if (_error is not null)
                 {
-                    <option value="@loc.Id">@loc.Label · @loc.Suburb</option>
-                }
-            </InputSelect>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Ingredients</label>
-            <InputText class="form-control" @bind-Value="_form.Ingredients" placeholder="Comma-separated" />
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Allergens</label>
-            <InputText class="form-control" @bind-Value="_form.Allergens" placeholder="e.g. Contains peanuts, gluten" />
-        </div>
-
-        <div class="mb-4">
-            <label class="form-label d-block">Dietary labels</label>
-            @foreach (DietaryLabel value in Enum.GetValues<DietaryLabel>())
-            {
-                @if (value != DietaryLabel.None)
-                {
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="@value" checked="@_form.Dietary.HasFlag(value)" @onchange="e => ToggleDietary(value, e.Value)" />
-                        <label class="form-check-label" for="@value">@value</label>
+                    <div class="callout callout-danger mb-3">
+                        <Icon Name="warning" Size="18" />
+                        <div>@_error</div>
                     </div>
                 }
-            }
+
+                <div class="d-flex gap-2 flex-wrap mb-5">
+                    <button class="btn btn-primary" type="submit" disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        <text>@(IsEdit ? "Save changes" : "Publish food drop")</text>
+                    </button>
+                    <a class="btn btn-outline-secondary" href="@(IsEdit ? $"/kitchen/drops/{Id}" : "/kitchen")">Cancel</a>
+                </div>
+            </EditForm>
         </div>
 
-        <button class="btn btn-primary" type="submit">Publish food drop</button>
-    </EditForm>
+        @* Live preview. A cook writing a listing can't otherwise tell what a
+           buyer will actually see — which is where vague titles and missing
+           allergens come from. *@
+        <div class="col-lg-5">
+            <div class="preview-pane">
+                <div class="text-muted small mb-2 d-flex align-items-center gap-1">
+                    <Icon Name="magnifying-glass" Size="14" /> How buyers will see it
+                </div>
+                <div style="max-width:320px;">
+                    <MealCard Drop="PreviewDrop()" IsFavorite="false" ShowFavoriteButton="false" />
+                </div>
+                <div class="field-hint mt-3">
+                    Cards in Discover are sorted by pickup time, so an earlier pickup window gets seen first.
+                </div>
+            </div>
+        </div>
+    </div>
 }
 
+<style>
+    .preview-pane { position: sticky; top: var(--space-4); }
+    @@media (max-width: 991.98px) { .preview-pane { position: static; } }
+</style>
+
 @code {
+    [Parameter] public int? Id { get; set; }
+    [SupplyParameterFromQuery(Name = "welcome")] public string? Welcome { get; set; }
+
+    private bool IsEdit => Id.HasValue;
+    private bool _isWelcome;
+
     private List<Category> _categories = new();
-    private SellerProfile? _sellerProfile;
     private List<PickupLocation> _pickupLocations = new();
+    private FoodDrop? _editTarget;
+    private bool _loadedForEdit;
+    private int _claimedPortions;
     private FormModel _form = new();
+    private bool _saving;
+    private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
-        _categories = await FoodDropService.GetCategoriesAsync();
-        if (_categories.Count > 0) _form.CategoryId = _categories[0].Id;
+        CurrentUser.OnChange += OnUserChanged;
+        _isWelcome = Welcome == "1";
+        await Load();
+    }
 
-        if (CurrentUser.CurrentUser is not null)
+    protected override async Task OnParametersSetAsync() => await Load();
+
+    private async Task Load()
+    {
+        _categories = await FoodDropService.GetCategoriesAsync();
+        if (CurrentUser.CurrentUser is null || !CurrentUser.IsSeller) return;
+
+        _pickupLocations = await Sellers.GetPickupLocationsAsync(CurrentUser.CurrentUser.Id);
+
+        if (IsEdit)
         {
-            _sellerProfile = await Db.SellerProfiles.AsNoTracking()
-                .Include(sp => sp.PickupLocations)
-                .FirstOrDefaultAsync(sp => sp.UserId == CurrentUser.CurrentUser.Id);
-            if (_sellerProfile is not null)
+            if (_editTarget?.Id == Id) return; // already loaded; don't stomp the user's edits
+            _editTarget = await FoodDropService.GetForEditAsync(Id!.Value, CurrentUser.CurrentUser.Id);
+            _loadedForEdit = true;
+            if (_editTarget is null) return;
+
+            _claimedPortions = _editTarget.PortionsTotal - _editTarget.PortionsRemaining;
+            _form = new FormModel
             {
-                _pickupLocations = _sellerProfile.PickupLocations;
-                if (_pickupLocations.Count > 0) _form.PickupLocationId = _pickupLocations[0].Id;
-            }
+                Title = _editTarget.Title,
+                Description = _editTarget.Description,
+                ImageEmoji = _editTarget.ImageEmoji,
+                Price = _editTarget.Price,
+                Portions = _editTarget.PortionsTotal,
+                OrderDeadline = _editTarget.OrderDeadline.ToLocalTime(),
+                PickupStart = _editTarget.PickupWindowStart.ToLocalTime(),
+                PickupEnd = _editTarget.PickupWindowEnd.ToLocalTime(),
+                Ingredients = _editTarget.Ingredients,
+                Allergens = _editTarget.Allergens,
+                Dietary = _editTarget.Dietary,
+                CategoryId = _editTarget.CategoryId,
+                PickupLocationId = _editTarget.PickupLocationId,
+            };
+            return;
         }
 
-        var now = DateTime.Now;
-        _form.OrderDeadline = now.AddHours(4);
-        _form.PickupStart = now.AddHours(5);
-        _form.PickupEnd = now.AddHours(6.5);
+        if (_form.CategoryId == 0 && _categories.Count > 0) _form.CategoryId = _categories[0].Id;
+        if (_form.PickupLocationId == 0 && _pickupLocations.Count > 0) _form.PickupLocationId = _pickupLocations[0].Id;
+
+        if (_form.OrderDeadline == default)
+        {
+            var now = DateTime.Now;
+            _form.OrderDeadline = now.AddHours(4);
+            _form.PickupStart = now.AddHours(5);
+            _form.PickupEnd = now.AddHours(6.5);
+        }
+    }
+
+    /// Nudges Blazor to re-render the preview as the cook types.
+    private void Touch() => StateHasChanged();
+
+    private static decimal NetOf(decimal gross) => Marketplace.Web.Services.SellerService.NetOf(gross);
+    private decimal NetPerPortion() => NetOf(_form.Price);
+
+    private string? TimingProblem()
+    {
+        if (_form.PickupEnd <= _form.PickupStart)
+            return "Pickup has to end after it starts.";
+        if (_form.OrderDeadline > _form.PickupStart)
+            return "Orders should close before pickup begins — otherwise someone can reserve food you've already handed over.";
+        if (!IsEdit && _form.OrderDeadline < DateTime.Now)
+            return "Orders would close in the past, so nobody could reserve a portion.";
+        return null;
+    }
+
+    private FoodDrop PreviewDrop()
+    {
+        var category = _categories.FirstOrDefault(c => c.Id == _form.CategoryId);
+        var location = _pickupLocations.FirstOrDefault(l => l.Id == _form.PickupLocationId);
+
+        return new FoodDrop
+        {
+            Title = string.IsNullOrWhiteSpace(_form.Title) ? "Your dish name" : _form.Title,
+            Description = _form.Description,
+            ImageEmoji = string.IsNullOrWhiteSpace(_form.ImageEmoji) ? "🍲" : _form.ImageEmoji,
+            Price = _form.Price,
+            PortionsTotal = _form.Portions,
+            PortionsRemaining = IsEdit ? Math.Max(0, _form.Portions - _claimedPortions) : _form.Portions,
+            OrderDeadline = _form.OrderDeadline.ToUniversalTime(),
+            PickupWindowStart = _form.PickupStart.ToUniversalTime(),
+            PickupWindowEnd = _form.PickupEnd.ToUniversalTime(),
+            Status = FoodDropStatus.Published,
+            Category = category,
+            Seller = CurrentUser.CurrentUser,
+            PickupLocation = location,
+        };
     }
 
     private void ToggleDietary(DietaryLabel value, object? isChecked)
@@ -157,37 +393,71 @@ else
     private async Task Submit()
     {
         if (CurrentUser.CurrentUser is null) return;
+        _error = TimingProblem();
+        if (_error is not null) return;
 
-        var drop = new FoodDrop
+        _saving = true;
+
+        var payload = new FoodDrop
         {
-            Title = _form.Title,
-            Description = _form.Description,
-            ImageEmoji = string.IsNullOrWhiteSpace(_form.ImageEmoji) ? "🍲" : _form.ImageEmoji,
+            Title = _form.Title.Trim(),
+            Description = _form.Description.Trim(),
+            ImageEmoji = string.IsNullOrWhiteSpace(_form.ImageEmoji) ? "🍲" : _form.ImageEmoji.Trim(),
             Price = _form.Price,
             PortionsTotal = _form.Portions,
             OrderDeadline = _form.OrderDeadline.ToUniversalTime(),
             PickupWindowStart = _form.PickupStart.ToUniversalTime(),
             PickupWindowEnd = _form.PickupEnd.ToUniversalTime(),
-            Ingredients = _form.Ingredients,
-            Allergens = _form.Allergens,
+            Ingredients = _form.Ingredients.Trim(),
+            Allergens = _form.Allergens.Trim(),
             Dietary = _form.Dietary,
             CategoryId = _form.CategoryId,
             SellerId = CurrentUser.CurrentUser.Id,
             PickupLocationId = _form.PickupLocationId,
         };
 
-        var created = await FoodDropService.CreateAsync(drop);
-        Nav.NavigateTo($"/food/{created.Id}");
+        if (IsEdit)
+        {
+            var result = await FoodDropService.UpdateAsync(Id!.Value, CurrentUser.CurrentUser.Id, payload);
+            if (!result.Success)
+            {
+                _error = result.Error switch
+                {
+                    DropEditError.BelowSoldPortions => $"You can't offer fewer than {_claimedPortions} portions — that many are already reserved.",
+                    DropEditError.InvalidWindow => "Check the timing: pickup has to end after it starts, and orders must close by the end of the window.",
+                    DropEditError.Locked => "This food drop can no longer be edited.",
+                    DropEditError.NotYours => "That food drop isn't yours.",
+                    _ => "Couldn't save your changes.",
+                };
+                _saving = false;
+                return;
+            }
+            Nav.NavigateTo($"/kitchen/drops/{Id}");
+            return;
+        }
+
+        var created = await FoodDropService.CreateAsync(payload);
+        // Land on the batch's management page, not the buyer's view — the next
+        // thing a cook does is watch orders come in.
+        Nav.NavigateTo($"/kitchen/drops/{created.Id}");
     }
+
+    private async void OnUserChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => CurrentUser.OnChange -= OnUserChanged;
 
     private class FormModel
     {
-        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Give the dish a name.")]
         public string Title { get; set; } = "";
         public string Description { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Range(1, 500)]
+        [System.ComponentModel.DataAnnotations.Range(1, 500, ErrorMessage = "Price must be between $1 and $500.")]
         public decimal Price { get; set; } = 12;
-        [System.ComponentModel.DataAnnotations.Range(1, 200)]
+        [System.ComponentModel.DataAnnotations.Range(1, 200, ErrorMessage = "Offer between 1 and 200 portions.")]
         public int Portions { get; set; } = 10;
         public DateTime OrderDeadline { get; set; }
         public DateTime PickupStart { get; set; }

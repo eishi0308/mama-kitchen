@@ -1,0 +1,25 @@
+@* A single number with its label. Used across the kitchen dashboard and
+   earnings so every headline figure shares one alignment and type scale. *@
+
+<div class="stat-tile @(Muted ? "stat-tile-muted" : "")">
+    <div class="stat-tile-label">
+        @if (!string.IsNullOrEmpty(IconName))
+        {
+            <Icon Name="@IconName" Size="14" />
+        }
+        <span>@Label</span>
+    </div>
+    <div class="stat-tile-value">@Value</div>
+    @if (!string.IsNullOrWhiteSpace(Hint))
+    {
+        <div class="stat-tile-hint">@Hint</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public string Value { get; set; } = "";
+    [Parameter] public string? Hint { get; set; }
+    [Parameter] public string? IconName { get; set; }
+    [Parameter] public bool Muted { get; set; }
+}

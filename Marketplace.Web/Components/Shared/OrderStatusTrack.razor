@@ -1,0 +1,73 @@
+@using Marketplace.Web.Models
+
+@* The buyer's "where is my food" answer. Terminal failure states (cancelled,
+   refunded, no-show) deliberately don't render a progress track at all — a
+   half-lit progress bar on a refunded order reads as "still coming". *@
+
+@if (IsTerminalFailure)
+{
+    <div class="track-terminal @TerminalClass">
+        <Icon Name="@TerminalIcon" Size="18" />
+        <span>@TerminalLabel</span>
+    </div>
+}
+else
+{
+    <ol class="status-track-labelled" aria-label="Order progress">
+        @foreach (var step in Steps)
+        {
+            var state = StateOf(step.Status);
+            <li class="track-step @state">
+                <span class="track-marker">
+                    @if (state == "done")
+                    {
+                        <Icon Name="check" Size="12" />
+                    }
+                </span>
+                <span class="track-label">@step.Label</span>
+            </li>
+        }
+    </ol>
+}
+
+@code {
+    [Parameter, EditorRequired] public OrderStatus Status { get; set; }
+
+    private record Step(OrderStatus Status, string Label);
+
+    private static readonly Step[] Steps =
+    {
+        new(OrderStatus.Confirmed, "Reserved"),
+        new(OrderStatus.Preparing, "Cooking"),
+        new(OrderStatus.Ready, "Ready"),
+        new(OrderStatus.Collected, "Collected"),
+    };
+
+    private bool IsTerminalFailure => Status is OrderStatus.Refunded
+        or OrderStatus.SellerCancelled or OrderStatus.BuyerNoShow or OrderStatus.Disputed;
+
+    private string TerminalLabel => Status switch
+    {
+        OrderStatus.Refunded => "Cancelled and refunded in full",
+        OrderStatus.SellerCancelled => "Cancelled by the cook — refunded in full",
+        OrderStatus.BuyerNoShow => "Not collected within the pickup window",
+        _ => "Disputed — under review",
+    };
+
+    private string TerminalIcon => Status is OrderStatus.BuyerNoShow ? "warning" : "x-circle";
+
+    private string TerminalClass => Status is OrderStatus.BuyerNoShow ? "track-warn" : "track-cancelled";
+
+    private string StateOf(OrderStatus step)
+    {
+        var order = Steps.Select(s => s.Status).ToArray();
+        var stepIdx = Array.IndexOf(order, step);
+        var currentIdx = Array.IndexOf(order, Status);
+
+        // PendingPayment sits before the track starts — nothing is lit yet.
+        if (currentIdx < 0) return "";
+        if (stepIdx < currentIdx) return "done";
+        if (stepIdx == currentIdx) return Status == OrderStatus.Collected ? "done" : "current";
+        return "";
+    }
+}

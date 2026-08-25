@@ -88,7 +88,11 @@ else
                 </div>
             </div>
 
-            <div class="surface-card p-3 mb-3 seller-card">
+            @* The cook, not just their name. Trust is the whole decision in a
+               hyperlocal food marketplace, so this is a route into their page
+               rather than a dead label. *@
+            <a class="surface-card p-3 mb-3 seller-card d-block text-decoration-none" style="color:inherit;"
+               href="/cooks/@_drop.SellerId">
                 <div class="d-flex align-items-center gap-2">
                     <span style="font-size:1.8rem;">@_drop.Seller?.Avatar</span>
                     <div class="flex-grow-1">
@@ -115,9 +119,12 @@ else
                 </div>
                 @if (!string.IsNullOrWhiteSpace(_drop.Seller?.SellerProfile?.Story))
                 {
-                    <p class="text-muted small mt-2 mb-0 fst-italic">"@_drop.Seller!.SellerProfile!.Story"</p>
+                    <p class="text-muted small mt-2 mb-2 fst-italic">"@_drop.Seller!.SellerProfile!.Story"</p>
                 }
-            </div>
+                <div class="small fw-bold d-flex align-items-center gap-1" style="color:var(--color-primary);">
+                    See @_drop.Seller?.Name's kitchen and reviews <Icon Name="arrow-right" Size="14" />
+                </div>
+            </a>
 
             @if (CurrentUser.CurrentUser is null)
             {
@@ -126,8 +133,11 @@ else
             else if (_drop.SellerId == CurrentUser.CurrentUser.Id)
             {
                 <div class="surface-card p-3">
-                    <p class="mb-2"><em>This is your own food drop.</em></p>
-                    <a class="btn btn-outline-secondary" href="/my-food-drops">Manage in My food drops</a>
+                    <p class="mb-2"><em>This is your own food drop — this is what buyers see.</em></p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a class="btn btn-primary" href="/kitchen/drops/@_drop.Id"><Icon Name="list" Size="15" /> Manage this batch</a>
+                        <a class="btn btn-outline-secondary" href="/kitchen/drops/@_drop.Id/edit"><Icon Name="pencil" Size="15" /> Edit</a>
+                    </div>
                 </div>
             }
             else
@@ -166,18 +176,28 @@ else
                     </button>
                 </div>
 
-                <details class="mt-3">
-                    <summary class="text-muted" style="cursor:pointer;">Message @_drop.Seller?.Name</summary>
-                    <div class="border rounded p-2 mt-2 mb-2" style="max-height:200px; overflow-y:auto;">
-                        @foreach (var m in _thread)
-                        {
-                            <div class="mb-1 @(m.SenderId == CurrentUser.CurrentUser.Id ? "text-end" : "")">
-                                <span class="badge @(m.SenderId == CurrentUser.CurrentUser.Id ? "bg-primary" : "bg-secondary")">@m.Body</span>
-                            </div>
-                        }
+                <details class="mt-3" open="@(_thread.Count > 0)">
+                    <summary class="text-muted" style="cursor:pointer;">
+                        Ask @_drop.Seller?.Name a question@(_thread.Count > 0 ? $" ({_thread.Count})" : "")
+                    </summary>
+                    <div class="surface-card p-3 mt-2 mb-2" style="max-height:260px; overflow-y:auto;">
                         @if (_thread.Count == 0)
                         {
-                            <span class="text-muted small">No messages yet — ask a question before you reserve.</span>
+                            <p class="text-muted small mb-0">
+                                No messages yet. Allergies, portion size, timing — anything you'd want to know before reserving.
+                            </p>
+                        }
+                        else
+                        {
+                            <div class="thread">
+                                @foreach (var m in _thread)
+                                {
+                                    <div class="bubble @(m.SenderId == CurrentUser.CurrentUser.Id ? "bubble-mine" : "bubble-theirs")">
+                                        @m.Body
+                                        <span class="bubble-time">@m.SentAt.ToLocalTime().ToString("h:mm tt")</span>
+                                    </div>
+                                }
+                            </div>
                         }
                     </div>
                     <div class="input-group">
@@ -188,6 +208,24 @@ else
             }
         </div>
     </div>
+
+    @* Cross-sell into the same cook rather than back out to the grid: someone
+       reading this page has already decided they like this kitchen. *@
+    @if (_moreFromCook.Count > 0)
+    {
+        <h2 class="section-heading">More from @_drop.Seller?.Name's kitchen</h2>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3 mb-4">
+            @foreach (var other in _moreFromCook)
+            {
+                <div class="col">
+                    <MealCard Drop="other" ShowFavoriteButton="false" OnOpen="GoToDrop" />
+                </div>
+            }
+        </div>
+        <a class="btn btn-outline-secondary" href="/cooks/@_drop.SellerId">
+            See everything from @_drop.Seller?.Name <Icon Name="arrow-right" Size="15" />
+        </a>
+    }
 }
 
 <style>
@@ -211,6 +249,7 @@ else
     private bool _isFavorite;
     private int _quantity = 1;
     private List<Message> _thread = new();
+    private List<FoodDrop> _moreFromCook = new();
     private string _draft = "";
 
     protected override async Task OnInitializedAsync()
@@ -226,6 +265,8 @@ else
         _drop = await FoodDropService.GetByIdAsync(Id);
         _quantity = 1;
         if (_drop is null) return;
+
+        _moreFromCook = await FoodDropService.GetMoreFromCookAsync(_drop.SellerId, _drop.Id);
 
         if (CurrentUser.CurrentUser is not null && CurrentUser.CurrentUser.Id != _drop.SellerId)
         {
@@ -257,6 +298,8 @@ else
             if (_drop.Dietary.HasFlag(value)) yield return value.ToString();
         }
     }
+
+    private void GoToDrop(int id) => Nav.NavigateTo($"/food/{id}");
 
     private void GoToCheckout()
     {

@@ -1,0 +1,264 @@
+@page "/cooks/{Id:int}"
+@inject ISellerService Sellers
+@inject IFavoriteService FavoriteService
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Nav
+@implements IDisposable
+
+@* The trust page. A hyperlocal food marketplace lives or dies on whether a
+   buyer believes a stranger's kitchen is worth eating from — and until now
+   there was nowhere to go to find out. *@
+
+<PageTitle>@(_profile?.Cook.Name ?? "Cook") — Batch</PageTitle>
+
+@if (_loaded && _profile is null)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="magnifying-glass" Size="26" /></div>
+        <h3>Cook not found</h3>
+        <p>This person isn't selling on Batch.</p>
+        <a class="btn btn-primary" href="/">Browse food nearby</a>
+    </div>
+}
+else if (_profile is null)
+{
+    <div class="skeleton mb-4" style="height:120px;"></div>
+    <div class="skeleton" style="height:280px;"></div>
+}
+else
+{
+    var p = _profile;
+    var isMe = CurrentUser.CurrentUser?.Id == p.Cook.Id;
+
+    <a class="back-link" href="/"><Icon Name="arrow-left" Size="15" /> Discover</a>
+
+    <div class="surface-card p-4 mb-4 fade-in">
+        <div class="cook-hero">
+            <div class="cook-avatar">@p.Cook.Avatar</div>
+            <div class="flex-grow-1" style="min-width:220px;">
+                <div class="cook-name">
+                    @p.Cook.Name
+                    @if (p.Profile.VerificationStatus == VerificationStatus.Verified)
+                    {
+                        <Icon Name="check-circle" Size="18" Class="verified-icon" />
+                    }
+                </div>
+                <div class="text-muted">@p.Profile.Cuisine · @p.Profile.Suburb</div>
+
+                <div class="d-flex gap-2 flex-wrap mt-2">
+                    @if (p.RatingAverage is decimal r)
+                    {
+                        <span class="badge-pill badge-info">
+                            <StarRating Precise="r" Size="13" /> @r.ToString("0.0") · @p.ReviewCount @(p.ReviewCount == 1 ? "review" : "reviews")
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge-pill badge-info">New cook — no reviews yet</span>
+                    }
+                    @if (p.Profile.VerificationStatus == VerificationStatus.Verified)
+                    {
+                        <span class="badge-pill badge-verified"><Icon Name="shield-check" Size="13" /> Verified</span>
+                    }
+                    else
+                    {
+                        <span class="badge-pill badge-urgent">Verification @p.Profile.VerificationStatus.ToString().ToLower()</span>
+                    }
+                    <span class="badge-pill badge-info"><Icon Name="calendar" Size="13" /> Cooking since @p.Profile.JoinedAt.ToLocalTime().ToString("MMM yyyy")</span>
+                </div>
+            </div>
+
+            @if (isMe)
+            {
+                <a class="btn btn-outline-secondary" href="/kitchen/profile"><Icon Name="pencil" Size="15" /> Edit profile</a>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(p.Profile.Story))
+        {
+            <p class="cook-story mt-4 mb-0">@p.Profile.Story</p>
+        }
+    </div>
+
+    @if (p.CompletedOrders > 0)
+    {
+        <div class="stat-grid mb-5">
+            <StatTile Label="Orders collected" Value="@p.CompletedOrders.ToString()" IconName="check-circle" Muted="true" />
+            <StatTile Label="Regulars" Value="@p.RepeatCustomers.ToString()" IconName="users" Muted="true"
+                      Hint="Buyers who came back" />
+            <StatTile Label="Reviews" Value="@p.ReviewCount.ToString()" IconName="star" Muted="true" />
+        </div>
+    }
+
+    <h2 class="section-heading">
+        @(p.UpcomingDrops.Count > 0 ? "What's coming up" : "Nothing scheduled right now")
+    </h2>
+
+    @if (p.UpcomingDrops.Count == 0)
+    {
+        <div class="callout callout-info mb-5">
+            <Icon Name="clock" Size="18" />
+            <div>
+                @p.Cook.Name hasn't got a batch scheduled at the moment.
+                @if (p.PastDrops.Count > 0)
+                {
+                    <text>Their recent cooking is below — worth checking back.</text>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3 mb-5">
+            @foreach (var drop in p.UpcomingDrops)
+            {
+                <div class="col">
+                    <MealCard Drop="drop" IsFavorite="_favoriteIds.Contains(drop.Id)"
+                              ShowFavoriteButton="CurrentUser.CurrentUser is not null && !isMe"
+                              OnOpen="GoToDrop" OnToggleFavorite="ToggleFavorite" />
+                </div>
+            }
+        </div>
+    }
+
+    @if (p.Reviews.Count > 0)
+    {
+        <h2 class="section-heading">What buyers said</h2>
+        <div class="surface-card p-4 mb-5">
+            <div class="rating-summary mb-3">
+                <span class="rating-big">@p.RatingAverage?.ToString("0.0")</span>
+                <div>
+                    <StarRating Precise="@p.RatingAverage" Size="16" />
+                    <div class="text-muted small">@p.ReviewCount @(p.ReviewCount == 1 ? "review" : "reviews") from collected orders</div>
+                </div>
+            </div>
+
+            @* Averages across the four things a buyer is actually deciding on.
+               A single blended star hides "great food, chaotic pickup". *@
+            <div class="row g-3 mb-2">
+                @foreach (var (label, value) in SubScores())
+                {
+                    <div class="col-6 col-md-3">
+                        <div class="stat-tile stat-tile-muted">
+                            <div class="stat-tile-label"><span>@label</span></div>
+                            <div class="stat-tile-value" style="font-size:var(--fs-lg);">@value.ToString("0.0")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="divider"></div>
+
+            @foreach (var review in p.Reviews.Take(_reviewsShown))
+            {
+                <div class="review-card">
+                    <div class="review-head">
+                        <span style="font-size:1.3rem;">@review.BuyerAvatar</span>
+                        <strong>@review.BuyerName</strong>
+                        <StarRating Precise="review.Overall" Size="14" />
+                        <span class="review-dish">· @review.DropTitle · @review.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(review.Comment))
+                    {
+                        <p class="review-body">@review.Comment</p>
+                    }
+                    <div class="review-subscores">
+                        <span>Food @review.FoodQuality/5</span>
+                        <span>Value @review.Value/5</span>
+                        <span>As described @review.Accuracy/5</span>
+                        <span>Pickup @review.PickupExperience/5</span>
+                    </div>
+                </div>
+            }
+
+            @if (p.Reviews.Count > _reviewsShown)
+            {
+                <button class="btn btn-outline-secondary btn-sm mt-3" @onclick="() => _reviewsShown += 10">
+                    Show more reviews (@(p.Reviews.Count - _reviewsShown) left)
+                </button>
+            }
+        </div>
+    }
+    else
+    {
+        <h2 class="section-heading">Reviews</h2>
+        <div class="callout callout-info mb-5">
+            <Icon Name="star" Size="18" />
+            <div>
+                No reviews yet. @p.Cook.Name is new to Batch —
+                @(p.Profile.VerificationStatus == VerificationStatus.Verified
+                    ? "their kitchen is verified, but nobody's rated a meal yet."
+                    : "their verification is still pending.")
+            </div>
+        </div>
+    }
+
+    @if (p.PastDrops.Count > 0)
+    {
+        <h2 class="section-heading">Recently cooked</h2>
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            @foreach (var d in p.PastDrops)
+            {
+                <span class="badge-pill badge-info" style="padding:0.5em 0.9em;">
+                    @d.ImageEmoji @d.Title · $@d.Price.ToString("0.##")
+                </span>
+            }
+        </div>
+        <p class="field-hint">A sense of what @p.Cook.Name usually makes — these batches are finished.</p>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private CookPublicProfile? _profile;
+    private bool _loaded;
+    private HashSet<int> _favoriteIds = new();
+    private int _reviewsShown = 5;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        await Load();
+    }
+
+    protected override async Task OnParametersSetAsync() => await Load();
+
+    private async Task Load()
+    {
+        _profile = await Sellers.GetPublicProfileAsync(Id);
+        _loaded = true;
+        if (CurrentUser.CurrentUser is not null)
+        {
+            var favs = await FavoriteService.GetFavoritesAsync(CurrentUser.CurrentUser.Id);
+            _favoriteIds = favs.Select(f => f.Id).ToHashSet();
+        }
+    }
+
+    private IEnumerable<(string Label, decimal Value)> SubScores()
+    {
+        if (_profile is null || _profile.Reviews.Count == 0) yield break;
+        var r = _profile.Reviews;
+        yield return ("Food", (decimal)r.Average(x => x.FoodQuality));
+        yield return ("Value", (decimal)r.Average(x => x.Value));
+        yield return ("As described", (decimal)r.Average(x => x.Accuracy));
+        yield return ("Pickup", (decimal)r.Average(x => x.PickupExperience));
+    }
+
+    private void GoToDrop(int id) => Nav.NavigateTo($"/food/{id}");
+
+    private async Task ToggleFavorite(int foodDropId)
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        await FavoriteService.ToggleAsync(CurrentUser.CurrentUser.Id, foodDropId);
+        if (!_favoriteIds.Add(foodDropId)) _favoriteIds.Remove(foodDropId);
+    }
+
+    private async void OnUserChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => CurrentUser.OnChange -= OnUserChanged;
+}

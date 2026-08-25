@@ -418,3 +418,405 @@ textarea:focus-visible,
 @media (max-width: 640.98px) {
     .content { padding-bottom: calc(var(--bottom-nav-height) + var(--space-4)); }
 }
+
+/* =========================================================================
+   STAR RATING
+   ========================================================================= */
+.star-display { display: inline-flex; align-items: center; gap: 1px; vertical-align: -2px; }
+.star-display .star-on { color: var(--color-warning); }
+.star-display .star-off { color: var(--color-border-strong); }
+
+.star-input { display: inline-flex; gap: var(--space-1); }
+.star-input-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    line-height: 0;
+    cursor: pointer;
+    color: var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    transition: transform var(--duration-micro) var(--ease-spring), color var(--duration-micro) var(--ease-standard);
+}
+.star-input-btn:hover { transform: scale(1.15); }
+.star-input-btn.filled { color: var(--color-warning); }
+
+/* =========================================================================
+   LABELLED ORDER STATUS TRACK
+   Replaces the four bare dots: a progress indicator with no labels can't tell
+   a buyer whether "Ready" means ready-to-collect or already-collected.
+   ========================================================================= */
+.status-track-labelled {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: step;
+}
+.track-step {
+    flex: 1;
+    position: relative;
+    text-align: center;
+    font-size: var(--fs-xs);
+    color: var(--color-text-faint);
+    font-weight: 500;
+    padding-top: 26px;
+}
+/* Connector line, drawn behind the markers and clipped at the two ends. */
+.track-step::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: -50%;
+    width: 100%;
+    height: 2px;
+    background: var(--color-border);
+}
+.track-step:first-child::before { display: none; }
+.track-step.done::before, .track-step.current::before { background: var(--color-success); }
+
+.track-marker {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    border: 2px solid var(--color-border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    transition: background var(--duration-standard) var(--ease-standard),
+                border-color var(--duration-standard) var(--ease-standard);
+}
+.track-step.done .track-marker { background: var(--color-success); border-color: var(--color-success); }
+.track-step.current .track-marker {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px var(--color-primary-tint);
+}
+.track-step.done .track-label { color: var(--color-text-muted); }
+.track-step.current .track-label { color: var(--color-primary-dark); font-weight: 700; }
+
+.track-terminal {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: var(--fs-sm);
+}
+.track-cancelled { background: var(--color-danger-tint); color: var(--color-danger); }
+.track-warn { background: var(--color-warning-tint); color: var(--color-warning); }
+
+/* =========================================================================
+   STAT TILES
+   ========================================================================= */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-3);
+}
+.stat-tile {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-sm);
+}
+.stat-tile-muted { background: var(--color-surface-alt); border-color: transparent; box-shadow: none; }
+.stat-tile-label {
+    display: flex; align-items: center; gap: 0.35rem;
+    color: var(--color-text-muted);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.stat-tile-label svg { color: var(--color-text-faint); }
+.stat-tile-value {
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    line-height: 1.15;
+    margin-top: var(--space-1);
+    font-variant-numeric: tabular-nums;
+}
+.stat-tile-hint { color: var(--color-text-faint); font-size: var(--fs-xs); margin-top: 2px; }
+
+/* =========================================================================
+   SEGMENTED TABS
+   ========================================================================= */
+.segmented {
+    display: inline-flex;
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-full);
+    padding: 4px;
+    gap: 2px;
+}
+.segmented button {
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    padding: 0.45rem 1rem;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--duration-micro) var(--ease-standard), color var(--duration-micro) var(--ease-standard);
+}
+.segmented button.active { background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-sm); }
+.segmented .seg-count {
+    display: inline-block;
+    margin-left: 0.35em;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-faint);
+    font-weight: 600;
+}
+.segmented button.active .seg-count { color: var(--color-primary); }
+
+/* =========================================================================
+   CALLOUTS
+   ========================================================================= */
+.callout {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+    border: 1px solid transparent;
+}
+.callout svg { flex: 0 0 auto; margin-top: 2px; }
+.callout-info { background: var(--color-surface-alt); color: var(--color-text-muted); }
+.callout-info svg { color: var(--color-text-faint); }
+.callout-success { background: var(--color-success-tint); color: var(--color-success); }
+.callout-warn { background: var(--color-warning-tint); color: var(--color-warning); }
+.callout-danger { background: var(--color-danger-tint); color: var(--color-danger); }
+.callout strong { font-weight: 700; }
+
+/* =========================================================================
+   PAGE HEADER (title + actions on one baseline)
+   ========================================================================= */
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-5);
+}
+.page-header h1 { font-size: var(--fs-xl); margin: 0; }
+.page-header .page-sub { color: var(--color-text-muted); font-size: var(--fs-sm); margin-top: 2px; }
+.page-header-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+.back-link {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    color: var(--color-text-muted);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: var(--space-3);
+}
+.back-link:hover { color: var(--color-primary); }
+
+/* =========================================================================
+   COOK PROFILE
+   ========================================================================= */
+.cook-hero {
+    display: flex;
+    gap: var(--space-4);
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+.cook-avatar {
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-surface-alt), #EFE3D3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.6rem;
+    flex: 0 0 auto;
+    border: 1px solid var(--color-border);
+}
+.cook-name { font-family: var(--font-display); font-size: var(--fs-xl); display: flex; align-items: center; gap: 0.4rem; }
+.cook-story {
+    font-size: var(--fs-md);
+    line-height: 1.6;
+    font-style: italic;
+    color: var(--color-text-muted);
+    border-left: 3px solid var(--color-border-strong);
+    padding-left: var(--space-4);
+}
+
+.review-card { padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); }
+.review-card:last-child { border-bottom: none; }
+.review-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.review-dish { color: var(--color-text-faint); font-size: var(--fs-xs); }
+.review-body { margin: var(--space-2) 0 0; line-height: 1.55; }
+.review-subscores {
+    display: flex; flex-wrap: wrap; gap: var(--space-3);
+    margin-top: var(--space-2);
+    font-size: var(--fs-xs);
+    color: var(--color-text-faint);
+}
+
+.rating-summary { display: flex; align-items: baseline; gap: var(--space-2); }
+.rating-big { font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 600; line-height: 1; }
+
+/* =========================================================================
+   KITCHEN (seller dashboard)
+   ========================================================================= */
+.kitchen-row {
+    display: block;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    text-decoration: none;
+    color: inherit;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--duration-standard) var(--ease-standard), transform var(--duration-standard) var(--ease-standard);
+}
+.kitchen-row:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); color: inherit; }
+.kitchen-row-head { display: flex; align-items: center; gap: var(--space-3); }
+.kitchen-emoji { font-size: 1.9rem; line-height: 1; flex: 0 0 auto; }
+.kitchen-title { font-weight: 700; }
+.kitchen-meta { color: var(--color-text-muted); font-size: var(--fs-sm); }
+.kitchen-figure { text-align: right; flex: 0 0 auto; }
+.kitchen-figure-main { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.progress-track { height: 6px; background: var(--color-surface-alt); border-radius: var(--radius-full); overflow: hidden; }
+.progress-fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: var(--radius-full);
+    transition: width var(--duration-complex) var(--ease-standard);
+}
+.progress-fill.full { background: var(--color-success); }
+
+/* Order rows inside a batch */
+.handover-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--color-border);
+    flex-wrap: wrap;
+}
+.handover-row:last-child { border-bottom: none; }
+.handover-avatar { font-size: 1.6rem; line-height: 1; }
+.code-input {
+    max-width: 108px;
+    font-size: var(--fs-md);
+    letter-spacing: 0.14em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================================
+   EARNINGS TABLE
+   ========================================================================= */
+.data-table-wrap { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.data-table th {
+    text-align: left;
+    font-size: var(--fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-faint);
+    font-weight: 700;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    white-space: nowrap;
+}
+.data-table td {
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.data-table .num-net { font-weight: 700; }
+.data-table .num-fee { color: var(--color-text-faint); }
+
+/* =========================================================================
+   ACTIVE ORDER BANNER (buyer, on Discover)
+   ========================================================================= */
+.active-order-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    background: var(--color-primary-tint);
+    border: 1px solid #F0CDB8;
+    border-radius: var(--radius-lg);
+    padding: var(--space-3) var(--space-4);
+    text-decoration: none;
+    color: var(--color-text);
+    margin-bottom: var(--space-5);
+    transition: box-shadow var(--duration-standard) var(--ease-standard);
+}
+.active-order-banner:hover { box-shadow: var(--shadow-md); color: var(--color-text); }
+.active-order-banner .banner-emoji { font-size: 1.9rem; line-height: 1; }
+.active-order-banner .banner-title { font-weight: 700; }
+.active-order-banner .banner-sub { font-size: var(--fs-sm); color: var(--color-primary-dark); }
+.active-order-banner .banner-go { margin-left: auto; color: var(--color-primary-dark); flex: 0 0 auto; }
+
+/* =========================================================================
+   FORMS
+   ========================================================================= */
+.form-section { margin-bottom: var(--space-6); }
+.form-section-title {
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    margin-bottom: var(--space-1);
+}
+.form-section-hint { color: var(--color-text-muted); font-size: var(--fs-sm); margin-bottom: var(--space-4); }
+.form-label { font-weight: 600; font-size: var(--fs-sm); margin-bottom: var(--space-1); }
+.form-control, .form-select { border-radius: var(--radius-md); border-color: var(--color-border-strong); padding: 0.6rem 0.8rem; }
+.field-hint { color: var(--color-text-faint); font-size: var(--fs-xs); margin-top: var(--space-1); }
+
+.step-header { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.step-number {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--color-primary); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--fs-xs); font-weight: 700; flex: 0 0 auto;
+}
+
+/* =========================================================================
+   MESSAGE THREAD (replaces the badge-pill chat)
+   ========================================================================= */
+.thread { display: flex; flex-direction: column; gap: var(--space-2); }
+.bubble {
+    max-width: 78%;
+    padding: 0.55rem 0.85rem;
+    border-radius: var(--radius-md);
+    font-size: var(--fs-sm);
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.bubble-mine { align-self: flex-end; background: var(--color-primary); color: #fff; border-bottom-right-radius: 4px; }
+.bubble-theirs { align-self: flex-start; background: var(--color-surface-alt); color: var(--color-text); border-bottom-left-radius: 4px; }
+.bubble-time { font-size: 10px; opacity: 0.75; display: block; margin-top: 2px; }
+
+.conversation-card {
+    display: block;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    transition: border-color var(--duration-micro) var(--ease-standard), background var(--duration-micro) var(--ease-standard);
+}
+.conversation-card:hover { border-color: var(--color-border-strong); color: inherit; }
+.conversation-card.active { border-color: var(--color-primary); background: var(--color-primary-tint); }
+
+/* =========================================================================
+   MISC
+   ========================================================================= */
+.divider { height: 1px; background: var(--color-border); margin: var(--space-5) 0; }
+.muted-strike { color: var(--color-text-faint); }
+.nowrap { white-space: nowrap; }
+.money { font-variant-numeric: tabular-nums; }
+.min-width-0 { min-width: 0; }

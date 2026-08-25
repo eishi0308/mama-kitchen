@@ -1,5 +1,6 @@
 @page "/orders/{Id:int}"
 @inject IOrderService OrderService
+@inject IFoodDropService FoodDropService
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Nav
 @implements IAsyncDisposable
@@ -8,7 +9,11 @@
 
 @if (CurrentUser.CurrentUser is null)
 {
-    <p class="text-muted">Pick a user in the sidebar first.</p>
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="user" Size="26" /></div>
+        <h3>Pick who you are first</h3>
+        <p>Choose a demo user in the sidebar to see this order.</p>
+    </div>
 }
 else if (_loaded && _order is null)
 {
@@ -16,99 +21,317 @@ else if (_loaded && _order is null)
         <div class="empty-state-icon"><Icon Name="magnifying-glass" Size="26" /></div>
         <h3>Order not found</h3>
         <p>Either it doesn't exist, or it's not one of yours.</p>
+        <a class="btn btn-outline-secondary" href="/orders">Your orders</a>
     </div>
 }
 else if (_order is null)
 {
-    <div class="skeleton" style="height:280px; max-width:560px;"></div>
+    <div class="skeleton" style="height:420px; max-width:600px;"></div>
 }
 else
 {
     var order = _order;
-    var isSeller = order.FoodDrop?.SellerId == CurrentUser.CurrentUser.Id;
+    var drop = order.FoodDrop!;
+    var isSeller = drop.SellerId == CurrentUser.CurrentUser.Id;
+    var live = order.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready;
 
-    <div class="surface-card p-4 fade-in" style="max-width:560px;">
-        @if (!isSeller)
-        {
-            @switch (order.Status)
+    <a class="back-link" href="@(isSeller ? $"/kitchen/drops/{drop.Id}" : "/orders")">
+        <Icon Name="arrow-left" Size="15" /> @(isSeller ? "Back to this batch" : "Your orders")
+    </a>
+
+    <div style="max-width:600px;">
+        <div class="surface-card p-4 fade-in mb-4">
+            @if (!isSeller)
             {
-                case OrderStatus.Confirmed or OrderStatus.Preparing:
-                    <h1 class="page-title" style="font-size:var(--fs-xl);"><Icon Name="check-circle" Size="22" Class="status-icon-success" /> Confirmed</h1>
-                    <p class="text-muted">@order.FoodDrop?.Seller?.Name is preparing your meal.</p>
-                    break;
-                case OrderStatus.Ready:
-                    <h1 style="font-size:var(--fs-xl);">Your meal is ready</h1>
-                    <p class="text-muted">Head over any time in your pickup window.</p>
-                    break;
-                case OrderStatus.Collected:
-                    <h1 class="page-title" style="font-size:var(--fs-xl);"><Icon Name="check-circle" Size="22" Class="status-icon-success" /> Collected</h1>
-                    <p class="text-muted">Enjoy your meal!</p>
-                    break;
-                default:
-                    <h1 style="font-size:var(--fs-xl);">Order @order.Status</h1>
-                    break;
-            }
-        }
-        else
-        {
-            <h1 style="font-size:var(--fs-xl);">Order from @order.Buyer?.Name</h1>
-            <p class="text-muted">@order.FoodDrop?.Title × @order.Quantity — status: @order.Status</p>
-        }
+                @* ---------------- BUYER ---------------- *@
+                <h1 style="font-size:var(--fs-xl); margin-bottom:0.15em;">@BuyerHeadline(order.Status)</h1>
+                <p class="text-muted mb-4">@BuyerSubline(order, drop)</p>
 
-        <div class="status-track my-3">
-            @foreach (var step in new[] { OrderStatus.Confirmed, OrderStatus.Preparing, OrderStatus.Ready, OrderStatus.Collected })
+                <OrderStatusTrack Status="order.Status" />
+            }
+            else
             {
-                <span class="status-dot @DotClass(step, order.Status)"></span>
+                @* ---------------- SELLER ---------------- *@
+                <h1 style="font-size:var(--fs-xl); margin-bottom:0.15em;">@order.Buyer?.Avatar @order.Buyer?.Name</h1>
+                <p class="text-muted mb-4">
+                    @drop.Title × @order.Quantity ·
+                    <span class="money">$@order.TotalAmount.ToString("0.00")</span> ·
+                    ordered @order.CreatedAt.ToLocalTime().ToString("d MMM, h:mm tt")
+                </p>
+                <OrderStatusTrack Status="order.Status" />
             }
-        </div>
 
-        <div class="d-flex align-items-center gap-3 mb-3">
-            <span style="font-size:2.2rem;">@order.FoodDrop?.ImageEmoji</span>
-            <div>
-                <div class="fw-bold">@order.FoodDrop?.Title × @order.Quantity</div>
-                <div class="text-muted small">$@order.TotalAmount.ToString("0.00") total</div>
+            <div class="divider"></div>
+
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <span style="font-size:2.4rem;">@drop.ImageEmoji</span>
+                <div class="flex-grow-1">
+                    <a href="/food/@drop.Id" class="fw-bold text-decoration-none" style="color:inherit;">@drop.Title</a>
+                    <div class="text-muted small">
+                        @order.Quantity × $@order.UnitPriceSnapshot.ToString("0.##")
+                        @if (!isSeller)
+                        {
+                            <text> · by <a href="/cooks/@drop.SellerId">@drop.Seller?.Name</a></text>
+                        }
+                    </div>
+                </div>
+                <div class="fw-bold money">$@order.TotalAmount.ToString("0.00")</div>
             </div>
-        </div>
 
-        <div class="mb-3">
-            <div class="text-muted small mb-1">PICKUP</div>
-            <div>@order.FoodDrop?.PickupWindowStart.ToLocalTime().ToString("ddd d MMM, h:mm tt")–@order.FoodDrop?.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")</div>
-            @if (order.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready or OrderStatus.Collected)
-            {
-                <div class="fw-bold">@order.FoodDrop?.PickupLocation?.ExactAddress</div>
-                <div class="text-muted small">@order.FoodDrop?.PickupLocation?.Instructions</div>
-            }
-        </div>
+            <div class="mb-3">
+                <div class="text-muted small mb-1" style="letter-spacing:0.04em;">PICKUP</div>
+                <div class="fw-bold">
+                    @drop.PickupWindowStart.ToLocalTime().ToString("ddd d MMM, h:mm tt")–@drop.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")
+                </div>
 
-        @if (!isSeller)
-        {
-            @if (order.Status != OrderStatus.Collected)
-            {
-                <div class="text-center my-4">
-                    <div class="text-muted small mb-2">SHOW THIS CODE AT PICKUP</div>
-                    <div class="pickup-code">@order.PickupCode</div>
-                </div>
-                <p class="text-muted small">Can't scan or find your cook? They can also confirm your pickup manually with this code.</p>
-            }
-        }
-        else if (order.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready)
-        {
-            <div class="surface-card p-3" style="background:var(--color-surface-alt); border:none;">
-                <div class="text-muted small mb-2">ENTER THE BUYER'S PICKUP CODE</div>
-                <div class="d-flex gap-2">
-                    <input class="form-control" style="max-width:140px; font-size:var(--fs-lg); letter-spacing:0.1em;" maxlength="4"
-                           @bind="_codeInput" @bind:event="oninput" placeholder="0000" />
-                    <button class="btn btn-primary" @onclick="ConfirmPickup">Confirm pickup</button>
-                </div>
-                @if (_pickupError is not null)
+                @if (RevealAddress(order.Status))
                 {
-                    <p class="text-danger small mt-2 mb-0">@_pickupError</p>
+                    @* The two-tier address model: exact location only ever
+                       appears once an order is actually paid for. *@
+                    <div class="mt-1">@drop.PickupLocation?.ExactAddress</div>
+                    @if (!string.IsNullOrWhiteSpace(drop.PickupLocation?.Instructions))
+                    {
+                        <div class="text-muted small fst-italic mt-1">@drop.PickupLocation!.Instructions</div>
+                    }
+                }
+                else
+                {
+                    <div class="text-muted small mt-1">
+                        @drop.PickupLocation?.Suburb — exact address was hidden after this order ended.
+                    </div>
+                }
+            </div>
+
+            @if (!isSeller && live)
+            {
+                <div class="text-center my-4 py-3" style="background:var(--color-surface-alt); border-radius:var(--radius-lg);">
+                    <div class="text-muted small mb-2" style="letter-spacing:0.06em;">SHOW THIS CODE AT PICKUP</div>
+                    <div class="pickup-code">@order.PickupCode</div>
+                    <p class="text-muted small mt-3 mb-0 px-4">
+                        @drop.Seller?.Name types this in to confirm you collected. Don't share it before you're there.
+                    </p>
+                </div>
+            }
+
+            @if (isSeller && live)
+            {
+                <div class="callout callout-info d-block mb-3">
+                    <div class="text-muted small mb-2" style="letter-spacing:0.04em;">ENTER @(order.Buyer?.Name.ToUpper())'S PICKUP CODE</div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <input class="form-control code-input" maxlength="4" inputmode="numeric" placeholder="0000"
+                               aria-label="Pickup code" @bind="_codeInput" @bind:event="oninput" />
+                        <button class="btn btn-primary" disabled="@_busy" @onclick="ConfirmPickup">Confirm pickup</button>
+                    </div>
+                    @if (_pickupError is not null)
+                    {
+                        <p class="text-danger small mt-2 mb-0">@_pickupError</p>
+                    }
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    @if (order.Status == OrderStatus.Confirmed)
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@_busy" @onclick="() => Advance(OrderStatus.Preparing)">
+                            <Icon Name="flame" Size="15" /> Mark cooking
+                        </button>
+                    }
+                    @if (order.Status is OrderStatus.Confirmed or OrderStatus.Preparing)
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@_busy" @onclick="() => Advance(OrderStatus.Ready)">
+                            <Icon Name="check-circle" Size="15" /> Mark ready
+                        </button>
+                    }
+                    <a class="btn btn-sm btn-outline-secondary" href="/messages/@drop.Id/@order.BuyerId">
+                        <Icon Name="chat" Size="15" /> Message @order.Buyer?.Name
+                    </a>
+                </div>
+            }
+
+            @* ---------------- Buyer: cancel ---------------- *@
+            @if (!isSeller && live)
+            {
+                var canCancel = DateTime.UtcNow < drop.OrderDeadline;
+                <div class="divider"></div>
+
+                @if (canCancel)
+                {
+                    @if (!_showCancel)
+                    {
+                        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                            <p class="text-muted small mb-0" style="flex:1 1 240px;">
+                                Free cancellation until @drop.OrderDeadline.ToLocalTime().ToString("h:mm tt") —
+                                after that @drop.Seller?.Name has shopped and started cooking.
+                            </p>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => _showCancel = true">Cancel order</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="callout callout-danger d-block">
+                            <div class="d-flex gap-3 mb-3">
+                                <Icon Name="warning" Size="18" />
+                                <div>
+                                    Cancel this order and we'll refund
+                                    <strong class="money">$@order.TotalAmount.ToString("0.00")</strong> in full.
+                                    Your @(order.Quantity == 1 ? "portion goes" : "portions go") back up for someone else.
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="CancelOrder">
+                                    Yes, cancel and refund
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => _showCancel = false">Keep my order</button>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="callout callout-info">
+                        <Icon Name="info" Size="18" />
+                        <div>
+                            Orders closed at @drop.OrderDeadline.ToLocalTime().ToString("h:mm tt"), so this one can't be
+                            cancelled for a refund any more — @drop.Seller?.Name is cooking it.
+                            <a href="/messages/@drop.Id/@drop.SellerId">Message them</a> if something's come up.
+                        </div>
+                    </div>
+                }
+
+                @if (_actionError is not null)
+                {
+                    <p class="text-danger small mt-2 mb-0">@_actionError</p>
+                }
+            }
+
+            @if (!isSeller && order.Status is OrderStatus.Refunded or OrderStatus.SellerCancelled)
+            {
+                <div class="divider"></div>
+                <div class="callout callout-info">
+                    <Icon Name="wallet" Size="18" />
+                    <div>
+                        <strong class="money">$@order.TotalAmount.ToString("0.00")</strong> was refunded to your
+                        original payment method.
+                        @if (!string.IsNullOrWhiteSpace(order.CancellationReason))
+                        {
+                            <text> Reason: @order.CancellationReason.</text>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* ---------------- Buyer: review ---------------- *@
+        @if (!isSeller && order.Status == OrderStatus.Collected)
+        {
+            <div class="surface-card p-4 mb-4">
+                @if (order.Review is not null)
+                {
+                    <h2 class="form-section-title" style="font-size:var(--fs-base);">Your review</h2>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <StarRating Precise="@((order.Review.FoodQuality + order.Review.Value + order.Review.Accuracy + order.Review.PickupExperience) / 4m)" Size="16" />
+                        <span class="text-muted small">@order.Review.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(order.Review.Comment))
+                    {
+                        <p class="mb-2">@order.Review.Comment</p>
+                    }
+                    <p class="field-hint mb-0">
+                        This counts towards @drop.Seller?.Name's rating on
+                        <a href="/cooks/@drop.SellerId">their cook page</a>.
+                    </p>
+                }
+                else if (_reviewSubmitted)
+                {
+                    <div class="callout callout-success">
+                        <Icon Name="check-circle" Size="18" />
+                        <div><strong>Thanks — that's live.</strong> @drop.Seller?.Name's rating has been updated.</div>
+                    </div>
+                }
+                else
+                {
+                    <h2 class="form-section-title" style="font-size:var(--fs-base);">How was it?</h2>
+                    <p class="form-section-hint">
+                        Four quick ratings. This is how the next person decides whether to trust @drop.Seller?.Name's kitchen.
+                    </p>
+
+                    @foreach (var dimension in Dimensions())
+                    {
+                        <div class="d-flex justify-content-between align-items-center py-2" style="border-bottom:1px solid var(--color-border);">
+                            <div>
+                                <div class="fw-bold" style="font-size:var(--fs-sm);">@dimension.Label</div>
+                                <div class="field-hint">@dimension.Hint</div>
+                            </div>
+                            <StarRating Value="dimension.Get()" ValueChanged="dimension.Set" Interactive="true" Size="22" Label="@dimension.Label" />
+                        </div>
+                    }
+
+                    <div class="my-3">
+                        <label class="form-label">Anything you'd tell a neighbour? <span class="text-muted">(optional)</span></label>
+                        <textarea class="form-control" rows="3" @bind="_comment"
+                                  placeholder="What was good, what wasn't, how the pickup went."></textarea>
+                    </div>
+
+                    @if (_reviewError is not null)
+                    {
+                        <p class="text-danger small">@_reviewError</p>
+                    }
+
+                    <button class="btn btn-primary" disabled="@(_busy || !ReviewComplete())" @onclick="SubmitReview">
+                        @if (ReviewComplete())
+                        {
+                            <text>Post review</text>
+                        }
+                        else
+                        {
+                            <text>Rate all four to post</text>
+                        }
+                    </button>
                 }
             </div>
         }
-        else if (order.Status == OrderStatus.Collected)
+
+        @* ---------------- Buyer: receipt + reorder ---------------- *@
+        @if (!isSeller)
         {
-            <div class="badge-pill badge-success p-2 d-inline-block">$@order.TotalAmount.ToString("0.00") added to your balance</div>
+            <div class="surface-card p-4">
+                <h2 class="form-section-title" style="font-size:var(--fs-base);">Receipt</h2>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">@order.Quantity × @drop.Title</span>
+                    <span class="money">$@order.TotalAmount.ToString("0.00")</span>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">Delivery</span>
+                    <span>Pickup — no fee</span>
+                </div>
+                <div class="d-flex justify-content-between py-1" style="font-weight:700; border-top:1px solid var(--color-border); margin-top:var(--space-2); padding-top:var(--space-2);">
+                    <span>@(order.Status is OrderStatus.Refunded or OrderStatus.SellerCancelled ? "Refunded" : "Total paid")</span>
+                    <span class="money">$@order.TotalAmount.ToString("0.00")</span>
+                </div>
+                @if (order.Payment is not null)
+                {
+                    <p class="field-hint mt-2 mb-0">
+                        @order.Payment.Provider · @order.Payment.Reference · @order.Payment.Status
+                    </p>
+                }
+
+                <div class="d-flex gap-2 flex-wrap mt-4">
+                    <a class="btn btn-outline-secondary btn-sm" href="/messages/@drop.Id/@drop.SellerId">
+                        <Icon Name="chat" Size="15" /> Message @drop.Seller?.Name
+                    </a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/cooks/@drop.SellerId">
+                        <Icon Name="user" Size="15" /> @drop.Seller?.Name's other food
+                    </a>
+                    @if (order.Status is OrderStatus.Collected or OrderStatus.Refunded or OrderStatus.SellerCancelled or OrderStatus.BuyerNoShow)
+                    {
+                        @if (_reorderTarget is FoodDrop again)
+                        {
+                            <a class="btn btn-primary btn-sm" href="/food/@again.Id">
+                                <Icon Name="arrow-right" Size="15" /> Order again — @again.Title
+                            </a>
+                        }
+                    }
+                </div>
+            </div>
         }
     </div>
 }
@@ -117,10 +340,33 @@ else
     [Parameter] public int Id { get; set; }
 
     private Order? _order;
+    private FoodDrop? _reorderTarget;
     private bool _loaded;
+    private bool _busy;
+
     private string _codeInput = "";
     private string? _pickupError;
+    private string? _actionError;
+    private bool _showCancel;
+
+    private int _foodQuality, _value, _accuracy, _pickupExperience;
+    private string _comment = "";
+    private string? _reviewError;
+    private bool _reviewSubmitted;
+
     private PeriodicTimer? _timer;
+
+    private record Dimension(string Label, string Hint, Func<int> Get, Action<int> Set);
+
+    private IEnumerable<Dimension> Dimensions()
+    {
+        yield return new("Food", "Taste, portion, temperature", () => _foodQuality, v => _foodQuality = v);
+        yield return new("Value", "Worth what you paid?", () => _value, v => _value = v);
+        yield return new("As described", "Did it match the listing?", () => _accuracy, v => _accuracy = v);
+        yield return new("Pickup", "Easy to find, ready on time?", () => _pickupExperience, v => _pickupExperience = v);
+    }
+
+    private bool ReviewComplete() => _foodQuality > 0 && _value > 0 && _accuracy > 0 && _pickupExperience > 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -133,11 +379,14 @@ else
         // "pick a user" even though the sidebar correctly shows you're signed in.
         CurrentUser.OnChange += OnUserChanged;
         await Load();
+
         // Light polling so a seller marking the order Ready/Collected on their
         // own screen is reflected here without the buyer refreshing manually.
         _timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
         _ = PollAsync();
     }
+
+    protected override async Task OnParametersSetAsync() => await Load();
 
     private async void OnUserChanged()
     {
@@ -151,6 +400,8 @@ else
         {
             while (_timer is not null && await _timer.WaitForNextTickAsync())
             {
+                // Don't refresh out from under an open dialog or a half-written review.
+                if (_busy || _showCancel || _foodQuality > 0) continue;
                 await Load();
                 await InvokeAsync(StateHasChanged);
             }
@@ -163,22 +414,51 @@ else
         if (CurrentUser.CurrentUser is null) { _loaded = true; return; }
         _order = await OrderService.GetByIdAsync(Id, CurrentUser.CurrentUser.Id);
         _loaded = true;
+
+        // "Order again" needs a drop that's actually orderable now — offering a
+        // finished batch would be a link to a dead end.
+        if (_order?.FoodDrop is not null && _order.BuyerId == CurrentUser.CurrentUser.Id)
+        {
+            var more = await FoodDropService.GetMoreFromCookAsync(_order.FoodDrop.SellerId, excludeDropId: -1, take: 6);
+            _reorderTarget = more.FirstOrDefault(d => d.IsOrderable && d.Title == _order.FoodDrop.Title)
+                             ?? more.FirstOrDefault(d => d.IsOrderable);
+        }
     }
 
-    private string DotClass(OrderStatus step, OrderStatus current)
+    private static bool RevealAddress(OrderStatus status) =>
+        status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready or OrderStatus.Collected;
+
+    private static string BuyerHeadline(OrderStatus status) => status switch
     {
-        var order = new[] { OrderStatus.Confirmed, OrderStatus.Preparing, OrderStatus.Ready, OrderStatus.Collected };
-        var stepIdx = Array.IndexOf(order, step);
-        var currentIdx = Array.IndexOf(order, current);
-        if (currentIdx < 0) return "";
-        if (stepIdx < currentIdx) return "done";
-        if (stepIdx == currentIdx) return current == OrderStatus.Collected ? "done" : "current";
-        return "";
-    }
+        OrderStatus.PendingPayment => "Payment not finished",
+        OrderStatus.Confirmed => "Reserved",
+        OrderStatus.Preparing => "Your cook has started",
+        OrderStatus.Ready => "Ready to collect",
+        OrderStatus.Collected => "Collected",
+        OrderStatus.Refunded => "Cancelled and refunded",
+        OrderStatus.SellerCancelled => "Cancelled by the cook",
+        OrderStatus.BuyerNoShow => "Not collected",
+        _ => status.ToString(),
+    };
+
+    private static string BuyerSubline(Order order, FoodDrop drop) => order.Status switch
+    {
+        OrderStatus.PendingPayment => "This order was never paid for, so no portion is being held.",
+        OrderStatus.Confirmed =>
+            $"{drop.Seller?.Name} has your order. Collect it between {drop.PickupWindowStart.ToLocalTime():h:mm tt} and {drop.PickupWindowEnd.ToLocalTime():h:mm tt}.",
+        OrderStatus.Preparing => $"{drop.Seller?.Name} is cooking your food right now.",
+        OrderStatus.Ready => "It's ready — head over any time in your pickup window.",
+        OrderStatus.Collected => "Enjoy your meal. Rating it below helps the next person choose.",
+        OrderStatus.Refunded => "You were refunded in full.",
+        OrderStatus.SellerCancelled => "The cook couldn't go ahead. You were refunded in full.",
+        OrderStatus.BuyerNoShow => "This order wasn't collected before the pickup window closed.",
+        _ => "",
+    };
 
     private async Task ConfirmPickup()
     {
         if (CurrentUser.CurrentUser is null) return;
+        _busy = true;
         _pickupError = null;
         var result = await OrderService.ConfirmPickupAsync(Id, CurrentUser.CurrentUser.Id, _codeInput.Trim());
         if (!result.Success)
@@ -189,9 +469,69 @@ else
                 PickupConfirmError.NotConfirmed => "This order isn't ready for pickup yet.",
                 _ => "Couldn't confirm this pickup.",
             };
-            return;
         }
         await Load();
+        _busy = false;
+    }
+
+    private async Task Advance(OrderStatus target)
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _busy = true;
+        await OrderService.AdvanceStatusAsync(Id, CurrentUser.CurrentUser.Id, target);
+        await Load();
+        _busy = false;
+    }
+
+    private async Task CancelOrder()
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _busy = true;
+        _actionError = null;
+        var result = await OrderService.CancelByBuyerAsync(Id, CurrentUser.CurrentUser.Id);
+        if (!result.Success)
+        {
+            _actionError = result.Error switch
+            {
+                OrderActionError.TooLateToCancel => "Orders just closed for this drop, so it can't be cancelled for a refund any more.",
+                OrderActionError.WrongStatus => "This order can't be cancelled any more.",
+                OrderActionError.RefundFailed => "The refund didn't go through — nothing was changed. Please try again.",
+                _ => "Couldn't cancel this order.",
+            };
+        }
+        _showCancel = false;
+        await Load();
+        _busy = false;
+    }
+
+    private async Task SubmitReview()
+    {
+        if (CurrentUser.CurrentUser is null || !ReviewComplete()) return;
+        _busy = true;
+        _reviewError = null;
+
+        var result = await OrderService.LeaveReviewAsync(
+            Id, CurrentUser.CurrentUser.Id, _foodQuality, _value, _accuracy, _pickupExperience, _comment);
+
+        if (!result.Success)
+        {
+            _reviewError = result.Error switch
+            {
+                OrderActionError.AlreadyReviewed => "You've already reviewed this order.",
+                OrderActionError.NotCollected => "You can only review an order you collected.",
+                OrderActionError.InvalidRating => "Every rating has to be between 1 and 5.",
+                _ => "Couldn't post your review.",
+            };
+        }
+        else
+        {
+            _reviewSubmitted = true;
+            _foodQuality = _value = _accuracy = _pickupExperience = 0;
+            _comment = "";
+        }
+
+        await Load();
+        _busy = false;
     }
 
     public async ValueTask DisposeAsync()

@@ -14,4 +14,11 @@ public class MockPaymentGateway : IPaymentGateway
         var reference = $"mock_pi_{Guid.NewGuid():N}"[..24];
         return new PaymentChargeResult(Success: true, Reference: reference, FailureReason: null);
     }
+
+    public async Task<PaymentRefundResult> RefundAsync(int orderId, string chargeReference, decimal amount)
+    {
+        await Task.Delay(300);
+        var reference = $"mock_re_{Guid.NewGuid():N}"[..24];
+        return new PaymentRefundResult(Success: true, Reference: reference, FailureReason: null);
+    }
 }

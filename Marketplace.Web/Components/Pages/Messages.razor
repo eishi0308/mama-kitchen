@@ -1,68 +1,122 @@
 @page "/messages"
 @page "/messages/{FoodDropId:int}/{OtherUserId:int}"
 @inject IMessageService MessageService
+@inject IFoodDropService FoodDropService
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Nav
 @implements IDisposable
 
+@* Shared by both worlds: the same thread is a buyer asking about allergens and
+   a cook answering it. Which side you're on only changes the labels. *@
+
 <PageTitle>Messages — Batch</PageTitle>
 
-<h1 class="page-title" style="font-size:var(--fs-xl); margin-bottom:var(--space-4);"><Icon Name="chat" Size="22" /> Messages</h1>
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><Icon Name="chat" Size="22" /> Messages</h1>
+        <div class="page-sub">Questions about a specific food drop — allergens, timing, portion size.</div>
+    </div>
+</div>
 
 @if (CurrentUser.CurrentUser is null)
 {
-    <p class="text-muted">Pick a user in the sidebar first.</p>
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="user" Size="26" /></div>
+        <h3>Pick who you are first</h3>
+        <p>Choose a demo user in the sidebar to see their conversations.</p>
+    </div>
+}
+else if (_conversations.Count == 0 && !HasThread)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="chat" Size="26" /></div>
+        <h3>No conversations yet</h3>
+        <p>
+            @(CurrentUser.Mode == AppMode.Cook
+                ? "When a buyer asks about one of your food drops, it'll appear here."
+                : "Open a food drop and ask the cook anything before you reserve.")
+        </p>
+        <a class="btn btn-primary" href="@(CurrentUser.Mode == AppMode.Cook ? "/kitchen" : "/")">
+            @(CurrentUser.Mode == AppMode.Cook ? "Your kitchen" : "Browse food nearby")
+        </a>
+    </div>
 }
 else
 {
-    <div class="row">
+    <div class="row g-3">
         <div class="col-md-4">
             <div class="d-flex flex-column gap-2">
                 @foreach (var c in _conversations)
                 {
-                    <a class="surface-card p-2 text-decoration-none text-dark @(IsActive(c) ? "conversation-active" : "")"
+                    <a class="conversation-card @(IsActive(c) ? "active" : "")"
                        href="/messages/@c.FoodDropId/@c.OtherUserId">
-                        <div class="d-flex justify-content-between">
-                            <strong>@c.OtherUserAvatar @c.OtherUserName</strong>
-                            <small class="text-muted">@c.LastMessageAt.ToLocalTime().ToString("d MMM")</small>
+                        <div class="d-flex justify-content-between align-items-baseline gap-2">
+                            <strong class="text-truncate">@c.OtherUserAvatar @c.OtherUserName</strong>
+                            <small class="text-muted nowrap">@ShortDate(c.LastMessageAt)</small>
                         </div>
-                        <div class="small text-truncate text-muted">re: @c.FoodDropTitle</div>
-                        <div class="small text-truncate">@c.LastMessage</div>
+                        <div class="small text-truncate" style="color:var(--color-text-faint);">re: @c.FoodDropTitle</div>
+                        <div class="small text-truncate text-muted">@c.LastMessage</div>
                     </a>
-                }
-                @if (_conversations.Count == 0)
-                {
-                    <p class="text-muted">No conversations yet — message a cook from a food drop page.</p>
                 }
             </div>
         </div>
+
         <div class="col-md-8">
-            @if (FoodDropId.HasValue && OtherUserId.HasValue)
+            @if (HasThread)
             {
-                <div class="surface-card p-2 mb-2" style="max-height:400px; overflow-y:auto;">
-                    @foreach (var m in _thread)
+                <div class="surface-card p-3 mb-2">
+                    @if (_threadDrop is not null)
                     {
-                        <div class="mb-1 @(m.SenderId == CurrentUser.CurrentUser.Id ? "text-end" : "")">
-                            <span class="badge @(m.SenderId == CurrentUser.CurrentUser.Id ? "bg-primary" : "bg-secondary")">@m.Body</span>
+                        <div class="d-flex align-items-center gap-2 pb-2 mb-3" style="border-bottom:1px solid var(--color-border);">
+                            <span style="font-size:1.5rem;">@_threadDrop.ImageEmoji</span>
+                            <div class="flex-grow-1" style="min-width:0;">
+                                <a href="/food/@_threadDrop.Id" class="fw-bold text-decoration-none text-truncate d-block" style="color:inherit;">
+                                    @_threadDrop.Title
+                                </a>
+                                <div class="text-muted small">
+                                    Pickup @_threadDrop.PickupWindowStart.ToLocalTime().ToString("ddd d MMM, h:mm tt")
+                                    · $@_threadDrop.Price.ToString("0.##")
+                                </div>
+                            </div>
+                            @if (_threadDrop.IsOrderable && _threadDrop.SellerId != CurrentUser.CurrentUser.Id)
+                            {
+                                <a class="btn btn-sm btn-primary nowrap" href="/food/@_threadDrop.Id">Reserve</a>
+                            }
                         </div>
                     }
+
+                    <div class="thread" style="max-height:420px; overflow-y:auto;">
+                        @if (_thread.Count == 0)
+                        {
+                            <p class="text-muted small mb-0">No messages in this conversation yet.</p>
+                        }
+                        @foreach (var m in _thread)
+                        {
+                            <div class="bubble @(m.SenderId == CurrentUser.CurrentUser.Id ? "bubble-mine" : "bubble-theirs")">
+                                @m.Body
+                                <span class="bubble-time">@m.SentAt.ToLocalTime().ToString("d MMM, h:mm tt")</span>
+                            </div>
+                        }
+                    </div>
                 </div>
+
                 <div class="input-group">
-                    <input class="form-control" @bind="_draft" @onkeyup="HandleKeyUp" placeholder="Type a message..." />
+                    <input class="form-control" @bind="_draft" @onkeyup="HandleKeyUp"
+                           placeholder="@(CurrentUser.Mode == AppMode.Cook ? "Reply to your buyer…" : "Ask about allergens, timing, portion size…")" />
                     <button class="btn btn-primary" @onclick="Send">Send</button>
                 </div>
             }
             else
             {
-                <p class="text-muted">Select a conversation.</p>
+                <div class="empty-state">
+                    <div class="empty-state-icon"><Icon Name="chat" Size="26" /></div>
+                    <h3>Pick a conversation</h3>
+                    <p>Choose one on the left to read it.</p>
+                </div>
             }
         </div>
     </div>
 }
-
-<style>
-    .conversation-active { outline: 2px solid var(--color-primary); }
-</style>
 
 @code {
     [Parameter] public int? FoodDropId { get; set; }
@@ -70,7 +124,10 @@ else
 
     private List<ConversationSummary> _conversations = new();
     private List<Message> _thread = new();
+    private FoodDrop? _threadDrop;
     private string _draft = "";
+
+    private bool HasThread => FoodDropId.HasValue && OtherUserId.HasValue;
 
     protected override async Task OnInitializedAsync()
     {
@@ -89,11 +146,20 @@ else
 
     private async Task LoadThread()
     {
-        if (CurrentUser.CurrentUser is not null && FoodDropId.HasValue && OtherUserId.HasValue)
-            _thread = await MessageService.GetThreadAsync(FoodDropId.Value, CurrentUser.CurrentUser.Id, OtherUserId.Value);
+        if (CurrentUser.CurrentUser is null || !HasThread) { _threadDrop = null; return; }
+        _thread = await MessageService.GetThreadAsync(FoodDropId!.Value, CurrentUser.CurrentUser.Id, OtherUserId!.Value);
+        // The dish is the whole context of the conversation — without it a
+        // thread reads as a stranger asking "is it gluten free?" about nothing.
+        _threadDrop = await FoodDropService.GetByIdAsync(FoodDropId.Value);
     }
 
     private bool IsActive(ConversationSummary c) => c.FoodDropId == FoodDropId && c.OtherUserId == OtherUserId;
+
+    private static string ShortDate(DateTime utc)
+    {
+        var local = utc.ToLocalTime();
+        return local.Date == DateTime.Now.Date ? local.ToString("h:mm tt") : local.ToString("d MMM");
+    }
 
     private async void OnUserChanged()
     {
@@ -109,8 +175,8 @@ else
 
     private async Task Send()
     {
-        if (CurrentUser.CurrentUser is null || !FoodDropId.HasValue || !OtherUserId.HasValue || string.IsNullOrWhiteSpace(_draft)) return;
-        await MessageService.SendAsync(FoodDropId.Value, CurrentUser.CurrentUser.Id, OtherUserId.Value, _draft);
+        if (CurrentUser.CurrentUser is null || !HasThread || string.IsNullOrWhiteSpace(_draft)) return;
+        await MessageService.SendAsync(FoodDropId!.Value, CurrentUser.CurrentUser.Id, OtherUserId!.Value, _draft);
         _draft = "";
         await LoadThread();
         await LoadConversations();

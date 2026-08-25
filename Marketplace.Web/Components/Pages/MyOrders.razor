@@ -5,15 +5,32 @@
 
 <PageTitle>My orders — Batch</PageTitle>
 
-<h1 class="page-title" style="font-size:var(--fs-xl); margin-bottom:var(--space-4);"><Icon Name="receipt" Size="22" /> My orders</h1>
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><Icon Name="receipt" Size="22" /> My orders</h1>
+        @if (_orders is not null && _orders.Count > 0)
+        {
+            <div class="page-sub">@Subline()</div>
+        }
+    </div>
+</div>
 
 @if (CurrentUser.CurrentUser is null)
 {
-    <p class="text-muted">Pick a user in the sidebar first.</p>
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="user" Size="26" /></div>
+        <h3>Pick who you are first</h3>
+        <p>Choose a demo user in the sidebar to see their orders.</p>
+    </div>
 }
 else if (_orders is null)
 {
-    <div class="skeleton" style="height:80px;"></div>
+    <div class="d-flex flex-column gap-2">
+        @for (var i = 0; i < 3; i++)
+        {
+            <div class="skeleton" style="height:88px;"></div>
+        }
+    </div>
 }
 else if (_orders.Count == 0)
 {
@@ -26,23 +43,111 @@ else if (_orders.Count == 0)
 }
 else
 {
-    <div class="d-flex flex-column gap-2">
-        @foreach (var o in _orders)
-        {
-            <a href="/orders/@o.Id" class="surface-card p-3 text-decoration-none text-dark d-flex align-items-center gap-3 order-row">
-                <span style="font-size:1.8rem;">@o.FoodDrop?.ImageEmoji</span>
-                <div class="flex-grow-1">
-                    <div class="fw-bold">@o.FoodDrop?.Title × @o.Quantity</div>
-                    <div class="text-muted small">@o.CreatedAt.ToLocalTime().ToString("d MMM, h:mm tt")</div>
-                </div>
-                <span class="badge-pill @StatusBadgeClass(o.Status)">@o.Status</span>
-            </a>
-        }
+    <div class="segmented mb-4" role="tablist">
+        <button role="tab" aria-selected="@(_tab == Tab.Active)" class="@(_tab == Tab.Active ? "active" : "")"
+                @onclick="() => _tab = Tab.Active">
+            Active<span class="seg-count">@Active.Count</span>
+        </button>
+        <button role="tab" aria-selected="@(_tab == Tab.Past)" class="@(_tab == Tab.Past ? "active" : "")"
+                @onclick="() => _tab = Tab.Past">
+            Past<span class="seg-count">@Past.Count</span>
+        </button>
     </div>
+
+    @if (_tab == Tab.Active && _needsReview > 0)
+    {
+        @* Nudge, not nag — one line, and it disappears the moment there's
+           nothing left to rate. *@
+        <div class="callout callout-info mb-4">
+            <Icon Name="star" Size="18" />
+            <div>
+                You've got @_needsReview collected @(_needsReview == 1 ? "meal" : "meals") waiting on a rating.
+                <button class="btn btn-link p-0 align-baseline" @onclick="() => _tab = Tab.Past">Rate @(_needsReview == 1 ? "it" : "them")</button>
+                — it's how the next person decides who to trust.
+            </div>
+        </div>
+    }
+
+    var shown = _tab == Tab.Active ? Active : Past;
+
+    @if (shown.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon"><Icon Name="@(_tab == Tab.Active ? "clock" : "check-circle")" Size="26" /></div>
+            <h3>@(_tab == Tab.Active ? "Nothing on the go" : "Nothing finished yet")</h3>
+            <p>
+                @(_tab == Tab.Active
+                    ? "You've got no orders in progress right now."
+                    : "Your completed and cancelled orders will collect here.")
+            </p>
+            @if (_tab == Tab.Active)
+            {
+                <a class="btn btn-primary" href="/">Find something for tonight</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2">
+            @foreach (var o in shown)
+            {
+                var drop = o.FoodDrop;
+                var needsReview = o.Status == OrderStatus.Collected && o.Review is null;
+                <a href="/orders/@o.Id" class="surface-card p-3 text-decoration-none order-row" style="color:inherit;">
+                    <div class="d-flex align-items-center gap-3">
+                        <span style="font-size:1.9rem;">@drop?.ImageEmoji</span>
+                        <div class="flex-grow-1" style="min-width:0;">
+                            <div class="fw-bold">@drop?.Title @(o.Quantity > 1 ? $"× {o.Quantity}" : "")</div>
+                            <div class="text-muted small">
+                                @drop?.Seller?.Name · @drop?.PickupLocation?.Suburb
+                            </div>
+                            <div class="text-muted small">@TimingLine(o)</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge-pill @StatusBadgeClass(o.Status)">@StatusLabel(o.Status)</span>
+                            <div class="fw-bold money mt-1">$@o.TotalAmount.ToString("0.00")</div>
+                        </div>
+                    </div>
+
+                    @if (o.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready)
+                    {
+                        <div class="mt-3 pt-2" style="border-top:1px solid var(--color-border);">
+                            <OrderStatusTrack Status="o.Status" />
+                        </div>
+                    }
+                    else if (needsReview)
+                    {
+                        <div class="mt-2 pt-2 d-flex align-items-center gap-2" style="border-top:1px solid var(--color-border);">
+                            <Icon Name="star" Size="15" Class="star-icon" />
+                            <span class="small fw-bold">Rate this meal</span>
+                            <Icon Name="arrow-right" Size="14" Class="ms-auto text-muted" />
+                        </div>
+                    }
+                </a>
+            }
+        </div>
+    }
 }
 
 @code {
+    private enum Tab { Active, Past }
+
     private List<Order>? _orders;
+    private Tab _tab = Tab.Active;
+    private int _needsReview;
+
+    // "Active" means the buyer still has something coming: paid for, not yet
+    // handed over. Everything else — collected, refunded, cancelled, no-show —
+    // is history and belongs behind the second tab rather than cluttering the first.
+    private List<Order> Active => _orders?
+        .Where(o => o.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready or OrderStatus.PendingPayment)
+        .OrderBy(o => o.FoodDrop?.PickupWindowStart ?? o.CreatedAt)
+        .ToList() ?? new();
+
+    private List<Order> Past => _orders?
+        .Where(o => o.Status is not (OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready or OrderStatus.PendingPayment))
+        .OrderByDescending(o => o.CollectedAt ?? o.CancelledAt ?? o.CreatedAt)
+        .ToList() ?? new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -52,14 +157,59 @@ else
 
     private async Task Load()
     {
-        if (CurrentUser.CurrentUser is not null)
-            _orders = await OrderService.GetForBuyerAsync(CurrentUser.CurrentUser.Id);
+        if (CurrentUser.CurrentUser is null) { _orders = null; return; }
+        _orders = await OrderService.GetForBuyerAsync(CurrentUser.CurrentUser.Id);
+        _needsReview = _orders.Count(o => o.Status == OrderStatus.Collected && o.Review is null);
+
+        // Open on whichever tab has something in it — landing on an empty
+        // "Active" when you have 30 past orders reads as a broken page.
+        if (Active.Count == 0 && Past.Count > 0) _tab = Tab.Past;
     }
+
+    private string Subline()
+    {
+        if (Active.Count > 0)
+        {
+            var next = Active.FirstOrDefault(o => o.FoodDrop is not null);
+            if (next?.FoodDrop is FoodDrop d)
+                return $"Next pickup: {d.Title} at {d.PickupWindowStart.ToLocalTime():h:mm tt} in {d.PickupLocation?.Suburb}.";
+            return $"{Active.Count} active";
+        }
+        return $"{Past.Count} finished · {_needsReview} waiting on a rating";
+    }
+
+    private static string TimingLine(Order o)
+    {
+        var drop = o.FoodDrop;
+        if (drop is null) return o.CreatedAt.ToLocalTime().ToString("d MMM, h:mm tt");
+
+        return o.Status switch
+        {
+            OrderStatus.Collected when o.CollectedAt is DateTime c => $"Collected {c.ToLocalTime():d MMM, h:mm tt}",
+            OrderStatus.Refunded or OrderStatus.SellerCancelled when o.CancelledAt is DateTime x => $"Cancelled {x.ToLocalTime():d MMM}",
+            OrderStatus.BuyerNoShow => $"Pickup window closed {drop.PickupWindowEnd.ToLocalTime():d MMM, h:mm tt}",
+            _ => $"Pickup {drop.PickupWindowStart.ToLocalTime():ddd d MMM, h:mm tt}–{drop.PickupWindowEnd.ToLocalTime():h:mm tt}",
+        };
+    }
+
+    private static string StatusLabel(OrderStatus status) => status switch
+    {
+        OrderStatus.PendingPayment => "Unpaid",
+        OrderStatus.Confirmed => "Reserved",
+        OrderStatus.Preparing => "Cooking",
+        OrderStatus.Ready => "Ready",
+        OrderStatus.Collected => "Collected",
+        OrderStatus.Refunded => "Refunded",
+        OrderStatus.SellerCancelled => "Cook cancelled",
+        OrderStatus.BuyerNoShow => "Not collected",
+        _ => status.ToString(),
+    };
 
     private static string StatusBadgeClass(OrderStatus status) => status switch
     {
         OrderStatus.Collected => "badge-success",
-        OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready => "badge-info",
+        OrderStatus.Ready => "badge-urgent",
+        OrderStatus.Confirmed or OrderStatus.Preparing => "badge-info",
         OrderStatus.PendingPayment => "badge-urgent",
         _ => "badge-sold-out",
     };
@@ -70,8 +220,5 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    public void Dispose()
-    {
-        CurrentUser.OnChange -= OnUserChanged;
-    }
+    public void Dispose() => CurrentUser.OnChange -= OnUserChanged;
 }

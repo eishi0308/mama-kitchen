@@ -1,0 +1,215 @@
+@page "/sell/start"
+@inject ISellerService Sellers
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>Start selling — Batch</PageTitle>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="chef-hat" Size="26" /></div>
+        <h3>Pick who you are first</h3>
+        <p>Choose a demo user in the sidebar, then come back to set up a kitchen.</p>
+    </div>
+}
+else if (CurrentUser.IsSeller)
+{
+    @* Already a cook — this page has nothing to offer them. *@
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="storefront" Size="26" /></div>
+        <h3>You already have a kitchen</h3>
+        <p>@CurrentUser.CurrentUser.Name is set up to sell on Batch.</p>
+        <a class="btn btn-primary" href="/kitchen">Go to your kitchen</a>
+    </div>
+}
+else
+{
+    <div style="max-width:680px;">
+        <div class="mb-5">
+            <span class="badge-pill badge-verified mb-2"><Icon Name="chef-hat" Size="13" /> Become a cook</span>
+            <h1 style="font-size:var(--fs-2xl); margin-bottom:0.2em;">Cook what you already cook — for the street you already live on.</h1>
+            <p class="text-muted" style="font-size:var(--fs-md);">
+                Post a batch, neighbours reserve portions before you shop, and they collect from your door.
+                No delivery drivers, no 30% platform cut, no commercial kitchen.
+            </p>
+        </div>
+
+        <div class="stat-grid mb-5">
+            <StatTile Label="You keep" Value="@($"{100 - (int)(Marketplace.Web.Services.SellerService.PlatformFeeRate * 100)}%")"
+                      Hint="Batch takes 10% per collected order" IconName="wallet" Muted="true" />
+            <StatTile Label="You cook" Value="To order" Hint="Only what's already reserved" IconName="flame" Muted="true" />
+            <StatTile Label="You deliver" Value="Nothing" Hint="Pickup only, from your address" IconName="map-pin" Muted="true" />
+        </div>
+
+        <EditForm Model="_form" OnValidSubmit="Submit">
+            <DataAnnotationsValidator />
+
+            <div class="form-section">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    <h2 class="form-section-title">Your kitchen</h2>
+                </div>
+                <p class="form-section-hint">This is what buyers see on your cook page, next to every drop you post.</p>
+
+                <div class="row">
+                    <div class="col-sm-6 mb-3">
+                        <label class="form-label">Suburb</label>
+                        <InputText class="form-control" @bind-Value="_form.Suburb" placeholder="e.g. Marrickville" />
+                        <div class="field-hint">Shown publicly. Your exact address stays private until someone's order is confirmed.</div>
+                        <ValidationMessage For="() => _form.Suburb" />
+                    </div>
+                    <div class="col-sm-6 mb-3">
+                        <label class="form-label">What you cook</label>
+                        <InputText class="form-control" @bind-Value="_form.Cuisine" placeholder="e.g. Sri Lankan home cook" />
+                        <ValidationMessage For="() => _form.Cuisine" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Your story</label>
+                    <InputTextArea class="form-control" rows="4" @bind-Value="_form.Story"
+                                   placeholder="Where did you learn to cook? Who taught you? This is the single biggest reason someone picks you over a takeaway." />
+                    <div class="field-hint">@_form.Story.Length characters — two or three honest sentences beat a paragraph of marketing.</div>
+                    <ValidationMessage For="() => _form.Story" />
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    <h2 class="form-section-title">Where people collect</h2>
+                </div>
+                <p class="form-section-hint">
+                    Buyers only ever see the suburb and rough distance until they've paid. The exact address and
+                    instructions below are revealed on a confirmed order, and nowhere else.
+                </p>
+
+                <div class="row">
+                    <div class="col-sm-7 mb-3">
+                        <label class="form-label">Pickup point name</label>
+                        <InputText class="form-control" @bind-Value="_form.LocationLabel" placeholder="e.g. Front gate" />
+                    </div>
+                    <div class="col-sm-5 mb-3">
+                        <label class="form-label">Roughly how far from the centre of your suburb?</label>
+                        <div class="input-group">
+                            <InputNumber class="form-control" @bind-Value="_form.ApproxDistanceKm" step="0.1" />
+                            <span class="input-group-text">km</span>
+                        </div>
+                        <div class="field-hint">Stands in for geocoding in this build.</div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Exact pickup address <span class="text-muted">(private)</span></label>
+                    <InputText class="form-control" @bind-Value="_form.ExactAddress" placeholder="14 Illawarra Rd, Marrickville NSW 2204" />
+                    <ValidationMessage For="() => _form.ExactAddress" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Pickup instructions <span class="text-muted">(private)</span></label>
+                    <InputTextArea class="form-control" rows="2" @bind-Value="_form.Instructions"
+                                   placeholder="e.g. Blue door on the left, ring the bell. I'll leave it in an insulated bag if I'm mid-cook." />
+                </div>
+            </div>
+
+            <div class="callout callout-warn mb-4">
+                <Icon Name="shield-check" Size="18" />
+                <div>
+                    <strong>Before you sell food in Australia:</strong> whether you need to register as a food business
+                    depends on your council, your state, and what you're cooking. Batch tracks where you are in that
+                    process — it can't tell you whether you're allowed to sell, and it doesn't pretend to.
+                    Your kitchen starts as <strong>Pending</strong> and buyers see that honestly.
+                </div>
+            </div>
+
+            @if (_error is not null)
+            {
+                <div class="callout callout-danger mb-3">
+                    <Icon Name="warning" Size="18" />
+                    <div>@_error</div>
+                </div>
+            }
+
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-primary" type="submit" disabled="@_saving">
+                    @if (_saving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        <text>Setting up your kitchen…</text>
+                    }
+                    else
+                    {
+                        <text>Create my kitchen</text>
+                    }
+                </button>
+                <a class="btn btn-outline-secondary" href="/">Not right now</a>
+            </div>
+        </EditForm>
+    </div>
+}
+
+@code {
+    private readonly FormModel _form = new();
+    private bool _saving;
+    private string? _error;
+
+    protected override void OnInitialized() => CurrentUser.OnChange += OnUserChanged;
+
+    private async void OnUserChanged() => await InvokeAsync(StateHasChanged);
+
+    public void Dispose() => CurrentUser.OnChange -= OnUserChanged;
+
+    private async Task Submit()
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _error = null;
+        _saving = true;
+
+        try
+        {
+            await Sellers.CreateProfileAsync(CurrentUser.CurrentUser.Id, new SellerOnboardingRequest(
+                _form.Suburb, _form.Cuisine, _form.Story,
+                _form.LocationLabel, _form.ExactAddress, _form.Instructions, _form.ApproxDistanceKm));
+
+            // Re-read the user so IsSeller flips, then move them into the Cook
+            // world — otherwise the nav still shows "Start selling" to someone
+            // who just finished starting.
+            await CurrentUser.RefreshAsync();
+            await CurrentUser.SetModeAsync(AppMode.Cook);
+
+            // Straight into posting the first drop: an empty kitchen is the
+            // most common place new sellers drop out.
+            Nav.NavigateTo("/post?welcome=1");
+        }
+        catch (Exception)
+        {
+            _error = "Something went wrong setting up your kitchen. Please try again.";
+            _saving = false;
+        }
+    }
+
+    private class FormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Which suburb do people collect from?")]
+        public string Suburb { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Tell buyers what you cook.")]
+        public string Cuisine { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Your story is what makes someone choose you.")]
+        [System.ComponentModel.DataAnnotations.MinLength(20, ErrorMessage = "A sentence or two, at least — this is the part buyers actually read.")]
+        public string Story { get; set; } = "";
+
+        public string LocationLabel { get; set; } = "Front door";
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Buyers need somewhere to collect from.")]
+        public string ExactAddress { get; set; } = "";
+
+        public string Instructions { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Range(0.1, 50)]
+        public double ApproxDistanceKm { get; set; } = 1.2;
+    }
+}

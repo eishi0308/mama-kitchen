@@ -173,3 +173,71 @@
         overflow-y: auto;
     }
 }
+
+/* Two-world mode switch (Eat / Cook) */
+.mode-switch {
+    display: flex;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius-full);
+    padding: 3px;
+    gap: 2px;
+}
+.mode-switch button {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 0.4rem 0.5rem;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease;
+}
+.mode-switch button:hover { color: #fff; }
+.mode-switch button.active { background: #fff; color: #2B211B; }
+
+.nav-section-label {
+    padding: 0 1.5rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.nav-role-tag {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: var(--radius-full);
+    padding: 0.15rem 0.5rem;
+}
+
+/* Count badge on a nav item — the cook's "you have things to do" signal */
+.nav-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-variant-numeric: tabular-nums;
+}
+.mode-switch button.active .nav-badge { background: var(--color-primary); color: #fff; }
+.mode-switch .nav-badge { margin-left: 0.25rem; }
+
+.nav-link-invite { color: #F3C9AF !important; }

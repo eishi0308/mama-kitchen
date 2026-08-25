@@ -1,11 +1,26 @@
 @page "/"
 @inject IFoodDropService FoodDropService
 @inject IFavoriteService FavoriteService
+@inject IOrderService OrderService
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Nav
 @implements IDisposable
 
 <PageTitle>Batch — homemade food near you</PageTitle>
+
+@* An order you're waiting on outranks browsing. Surfacing it here means a
+   buyer never has to go hunting for their pickup code or address. *@
+@if (_activeOrder is { FoodDrop: not null } active)
+{
+    <a class="active-order-banner fade-in" href="/orders/@active.Id">
+        <span class="banner-emoji">@active.FoodDrop.ImageEmoji</span>
+        <div>
+            <div class="banner-title">@ActiveOrderHeadline(active)</div>
+            <div class="banner-sub">@ActiveOrderSubline(active)</div>
+        </div>
+        <Icon Name="arrow-right" Size="20" Class="banner-go" />
+    </a>
+}
 
 <div class="mb-4">
     <h1 style="font-size:var(--fs-2xl); margin-bottom:0.15em;">What can you eat near you tonight?</h1>
@@ -75,6 +90,7 @@ else
     private enum FilterChip { All, UnderFifteen, ReadySoon, Vegetarian, Halal }
 
     private List<FoodDrop>? _drops;
+    private Order? _activeOrder;
     private List<Category> _categories = new();
     private HashSet<int> _favoriteIds = new();
     private string _query = "";
@@ -86,6 +102,7 @@ else
         CurrentUser.OnChange += OnUserChanged;
         _categories = await FoodDropService.GetCategoriesAsync();
         await LoadFavorites();
+        await LoadActiveOrder();
         await ApplyFilters();
     }
 
@@ -130,6 +147,40 @@ else
 
         _drops = results;
         StateHasChanged();
+    }
+
+    /// The single most imminent order the buyer is still waiting on.
+    private async Task LoadActiveOrder()
+    {
+        _activeOrder = null;
+        if (CurrentUser.CurrentUser is null) return;
+
+        var orders = await OrderService.GetForBuyerAsync(CurrentUser.CurrentUser.Id);
+        _activeOrder = orders
+            .Where(o => o.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready)
+            .OrderBy(o => o.FoodDrop?.PickupWindowStart ?? DateTime.MaxValue)
+            .FirstOrDefault();
+    }
+
+    private static string ActiveOrderHeadline(Order o) => o.Status switch
+    {
+        OrderStatus.Ready => $"{o.FoodDrop!.Title} is ready to collect",
+        OrderStatus.Preparing => $"{o.FoodDrop!.Seller?.Name} is cooking your {o.FoodDrop.Title}",
+        _ => $"{o.FoodDrop!.Title} reserved from {o.FoodDrop.Seller?.Name}",
+    };
+
+    private static string ActiveOrderSubline(Order o)
+    {
+        var drop = o.FoodDrop!;
+        var mins = (int)(drop.PickupWindowStart - DateTime.UtcNow).TotalMinutes;
+        var when = mins switch
+        {
+            <= 0 => "Pickup window is open now",
+            < 60 => $"Pickup in {mins} min",
+            < 60 * 24 => $"Pickup in {mins / 60}h {mins % 60}m",
+            _ => $"Pickup {drop.PickupWindowStart.ToLocalTime():ddd d MMM}",
+        };
+        return $"{when} · {drop.PickupLocation?.Suburb} · code {o.PickupCode}";
     }
 
     private async Task LoadFavorites()
@@ -181,6 +232,7 @@ else
     private async void OnUserChanged()
     {
         await LoadFavorites();
+        await LoadActiveOrder();
         await InvokeAsync(StateHasChanged);
     }
 

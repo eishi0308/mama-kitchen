@@ -1,0 +1,42 @@
+@* Reads as a rating, or writes one. The same component both ways so a review
+   can never render its stars differently from how it captured them. *@
+
+@if (Interactive)
+{
+    <div class="star-input" role="radiogroup" aria-label="@Label">
+        @for (var i = 1; i <= 5; i++)
+        {
+            var score = i;
+            <button type="button"
+                    class="star-input-btn @(score <= Value ? "filled" : "")"
+                    role="radio"
+                    aria-checked="@(score == Value)"
+                    aria-label="@($"{score} out of 5")"
+                    title="@($"{score} out of 5")"
+                    @onclick="() => ValueChanged.InvokeAsync(score)">
+                <Icon Name="star" Size="@Size" Filled="@(score <= Value)" />
+            </button>
+        }
+    </div>
+}
+else
+{
+    <span class="star-display" aria-label="@($"{Value} out of 5")">
+        @for (var i = 1; i <= 5; i++)
+        {
+            <Icon Name="star" Size="@Size" Filled="@(i <= Math.Round(Precise ?? Value, MidpointRounding.AwayFromZero))"
+                  Class="@(i <= Math.Round(Precise ?? Value, MidpointRounding.AwayFromZero) ? "star-on" : "star-off")" />
+        }
+    </span>
+}
+
+@code {
+    [Parameter] public int Value { get; set; }
+    /// Fractional average (e.g. 4.4) when displaying an aggregate rather than
+    /// one person's whole-star score.
+    [Parameter] public decimal? Precise { get; set; }
+    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+    [Parameter] public bool Interactive { get; set; }
+    [Parameter] public int Size { get; set; } = 16;
+    [Parameter] public string Label { get; set; } = "Rating";
+}

@@ -1,0 +1,155 @@
+@page "/kitchen/earnings"
+@inject ISellerService Sellers
+@inject CurrentUserService CurrentUser
+@implements IDisposable
+
+<PageTitle>Earnings — Batch</PageTitle>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <p class="text-muted">Pick a user in the sidebar first.</p>
+}
+else if (!CurrentUser.IsSeller)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="wallet" Size="26" /></div>
+        <h3>No kitchen, no earnings</h3>
+        <p>Set up a kitchen and your payouts will show up here.</p>
+        <a class="btn btn-primary mt-2" href="/sell/start">Start selling</a>
+    </div>
+}
+else if (_earnings is null)
+{
+    <div class="stat-grid mb-4">
+        @for (var i = 0; i < 4; i++)
+        {
+            <div class="skeleton" style="height:92px;"></div>
+        }
+    </div>
+    <div class="skeleton" style="height:280px;"></div>
+}
+else
+{
+    <div class="page-header">
+        <div>
+            <h1>Earnings</h1>
+            <div class="page-sub">Every dollar that's moved through your kitchen, and where it is now.</div>
+        </div>
+    </div>
+
+    <div class="stat-grid mb-4">
+        <StatTile Label="Balance" Value="@($"${_earnings.PendingPayout:0.00}")" IconName="wallet"
+                  Hint="Includes orders not yet collected" />
+        <StatTile Label="Paid out" Value="@($"${_earnings.PaidOut:0.00}")" IconName="check-circle"
+                  Hint="Settled 48h after collection" />
+        <StatTile Label="Last 7 days" Value="@($"${_earnings.ThisWeekNet:0.00}")" IconName="trend-up"
+                  Hint="@($"{_earnings.CompletedOrders} orders all time")" />
+        <StatTile Label="Batch fees" Value="@($"${_earnings.PlatformFees:0.00}")" IconName="tag" Muted="true"
+                  Hint="10% of collected orders" />
+    </div>
+
+    <div class="surface-card p-4 mb-4">
+        <h2 class="form-section-title" style="font-size:var(--fs-base);">Lifetime</h2>
+        <div class="d-flex justify-content-between py-2" style="border-bottom:1px solid var(--color-border);">
+            <span class="text-muted">Buyers paid</span>
+            <strong class="money">$@_earnings.LifetimeGross.ToString("0.00")</strong>
+        </div>
+        <div class="d-flex justify-content-between py-2" style="border-bottom:1px solid var(--color-border);">
+            <span class="text-muted">Batch fee (10%)</span>
+            <span class="money">−$@_earnings.PlatformFees.ToString("0.00")</span>
+        </div>
+        <div class="d-flex justify-content-between py-2" style="font-size:var(--fs-md); font-weight:700;">
+            <span>You earned</span>
+            <span class="money">$@_earnings.LifetimeNet.ToString("0.00")</span>
+        </div>
+        @if (_earnings.RefundedOrders > 0)
+        {
+            <p class="field-hint mt-2 mb-0">
+                @_earnings.RefundedOrders refunded @(_earnings.RefundedOrders == 1 ? "order is" : "orders are") excluded —
+                refunds carry no fee, so a cancellation costs you nothing.
+            </p>
+        }
+    </div>
+
+    <div class="callout callout-info mb-4">
+        <Icon Name="info" Size="18" />
+        <div>
+            Payouts are simulated: an order settles 48 hours after collection.
+            Real money movement runs through Stripe Connect, which this build stands in for
+            behind <code>IPaymentGateway</code> — nothing here has touched a real card.
+        </div>
+    </div>
+
+    <h2 class="section-heading">Order history</h2>
+    @if (_earnings.Rows.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon"><Icon Name="receipt" Size="26" /></div>
+            <h3>Nothing earned yet</h3>
+            <p>Once someone collects an order, it'll appear here.</p>
+            <a class="btn btn-primary mt-2" href="/post">Post a food drop</a>
+        </div>
+    }
+    else
+    {
+        <div class="surface-card p-2">
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Dish</th>
+                            <th>Buyer</th>
+                            <th>When</th>
+                            <th class="num">Paid</th>
+                            <th class="num">Fee</th>
+                            <th class="num">You keep</th>
+                            <th>Payout</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in _earnings.Rows)
+                        {
+                            <tr>
+                                <td><a href="/kitchen/drops/@row.FoodDropId" class="text-decoration-none">@row.DropTitle</a></td>
+                                <td class="nowrap">@row.BuyerAvatar @row.BuyerName</td>
+                                <td class="nowrap">@row.At.ToLocalTime().ToString("d MMM, h:mm tt")</td>
+                                <td class="num">$@row.Gross.ToString("0.00")</td>
+                                <td class="num num-fee">−$@row.Fee.ToString("0.00")</td>
+                                <td class="num num-net">$@row.Net.ToString("0.00")</td>
+                                <td>
+                                    <span class="badge-pill @(row.Settled ? "badge-success" : "badge-info")">
+                                        @(row.Settled ? "Paid out" : "Pending")
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <p class="field-hint mt-2">Showing the @_earnings.Rows.Count most recent orders.</p>
+    }
+}
+
+@code {
+    private SellerEarnings? _earnings;
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        if (CurrentUser.CurrentUser is null || !CurrentUser.IsSeller) { _earnings = null; return; }
+        _earnings = await Sellers.GetEarningsAsync(CurrentUser.CurrentUser.Id);
+    }
+
+    private async void OnUserChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => CurrentUser.OnChange -= OnUserChanged;
+}

@@ -1,0 +1,301 @@
+@page "/kitchen/profile"
+@inject ISellerService Sellers
+@inject CurrentUserService CurrentUser
+@implements IDisposable
+
+<PageTitle>Cook profile — Batch</PageTitle>
+
+@if (CurrentUser.CurrentUser is null)
+{
+    <p class="text-muted">Pick a user in the sidebar first.</p>
+}
+else if (!CurrentUser.IsSeller)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="chef-hat" Size="26" /></div>
+        <h3>No kitchen yet</h3>
+        <p>Set one up and you'll be able to edit your cook profile here.</p>
+        <a class="btn btn-primary mt-2" href="/sell/start">Start selling</a>
+    </div>
+}
+else if (_profile is null)
+{
+    <div class="skeleton" style="height:300px;"></div>
+}
+else
+{
+    <div class="page-header">
+        <div>
+            <h1>Cook profile</h1>
+            <div class="page-sub">What buyers read before they decide to trust your kitchen.</div>
+        </div>
+        <div class="page-header-actions">
+            <a class="btn btn-outline-secondary" href="/cooks/@CurrentUser.CurrentUser.Id">
+                <Icon Name="magnifying-glass" Size="15" /> See it as a buyer
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="surface-card p-4 mb-4">
+                <h2 class="form-section-title" style="font-size:var(--fs-base);">Your story</h2>
+                <p class="form-section-hint">
+                    This appears on every food drop you post. It's the single biggest reason someone picks a home
+                    cook over a takeaway.
+                </p>
+
+                <div class="row">
+                    <div class="col-sm-6 mb-3">
+                        <label class="form-label">Suburb</label>
+                        <input class="form-control" @bind="_suburb" />
+                    </div>
+                    <div class="col-sm-6 mb-3">
+                        <label class="form-label">What you cook</label>
+                        <input class="form-control" @bind="_cuisine" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Story</label>
+                    <textarea class="form-control" rows="4" @bind="_story"></textarea>
+                </div>
+
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-primary" disabled="@_savingProfile" @onclick="SaveProfile">Save profile</button>
+                    @if (_profileSaved)
+                    {
+                        <span class="badge-pill badge-success"><Icon Name="check" Size="13" /> Saved</span>
+                    }
+                </div>
+            </div>
+
+            <div class="surface-card p-4">
+                <h2 class="form-section-title" style="font-size:var(--fs-base);">Pickup points</h2>
+                <p class="form-section-hint">
+                    Only the suburb and rough distance are public. The exact address and instructions are revealed
+                    to a buyer once their order is confirmed — never before.
+                </p>
+
+                @foreach (var loc in _locations)
+                {
+                    <div class="handover-row">
+                        <Icon Name="map-pin" Size="20" Class="text-muted" />
+                        <div class="flex-grow-1" style="min-width:180px;">
+                            <div class="fw-bold">@loc.Label · @loc.Suburb</div>
+                            <div class="kitchen-meta">@loc.ExactAddress</div>
+                            @if (!string.IsNullOrWhiteSpace(loc.Instructions))
+                            {
+                                <div class="kitchen-meta fst-italic">@loc.Instructions</div>
+                            }
+                        </div>
+                        <span class="badge-pill badge-info">@DistanceLabel(loc.ApproxDistanceKm)</span>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(loc.Id)" title="Remove this pickup point">
+                            <Icon Name="trash" Size="15" />
+                        </button>
+                        @if (_locationErrors.TryGetValue(loc.Id, out var err))
+                        {
+                            <div class="text-danger small" style="flex-basis:100%;">@err</div>
+                        }
+                    </div>
+                }
+
+                @if (_locations.Count == 0)
+                {
+                    <div class="callout callout-warn mb-3">
+                        <Icon Name="warning" Size="18" />
+                        <div>You have no pickup points, so you can't post a food drop. Add one below.</div>
+                    </div>
+                }
+
+                @if (_addingLocation)
+                {
+                    <div class="mt-3 pt-3" style="border-top:1px solid var(--color-border);">
+                        <div class="row">
+                            <div class="col-sm-7 mb-2">
+                                <label class="form-label">Name</label>
+                                <input class="form-control" @bind="_newLabel" placeholder="e.g. Front gate" />
+                            </div>
+                            <div class="col-sm-5 mb-2">
+                                <label class="form-label">Suburb</label>
+                                <input class="form-control" @bind="_newSuburb" />
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Exact address <span class="text-muted">(private)</span></label>
+                            <input class="form-control" @bind="_newAddress" />
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-8 mb-3">
+                                <label class="form-label">Instructions <span class="text-muted">(private)</span></label>
+                                <input class="form-control" @bind="_newInstructions" placeholder="e.g. Ring the bell, esky is on the porch" />
+                            </div>
+                            <div class="col-sm-4 mb-3">
+                                <label class="form-label">Approx. distance</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.1" class="form-control" @bind="_newKm" />
+                                    <span class="input-group-text">km</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary btn-sm" disabled="@_savingLocation" @onclick="AddLocation">Add pickup point</button>
+                            <button class="btn btn-outline-secondary btn-sm" @onclick="() => _addingLocation = false">Cancel</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <button class="btn btn-outline-secondary btn-sm mt-3" @onclick="() => _addingLocation = true">
+                        <Icon Name="plus" Size="15" /> Add a pickup point
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="surface-card p-4">
+                <h2 class="form-section-title" style="font-size:var(--fs-base);">Verification</h2>
+                <div class="d-flex align-items-center gap-2 my-2">
+                    <span class="badge-pill @VerificationBadgeClass(_profile.VerificationStatus)">
+                        <Icon Name="shield-check" Size="13" /> @_profile.VerificationStatus
+                    </span>
+                </div>
+                <p class="text-muted small mb-0">
+                    Whether you need to register as a food business depends on your council, your state and what
+                    you cook. Batch tracks where you are in that process — it can't tell you whether you're
+                    allowed to sell, and it doesn't pretend to.
+                </p>
+
+                <div class="divider"></div>
+
+                <h2 class="form-section-title" style="font-size:var(--fs-base);">Your numbers</h2>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">Rating</span>
+                    <strong>
+                        @if (_profile.RatingAverage is decimal r)
+                        {
+                            <StarRating Precise="r" Size="14" /> <span class="ms-1">@r.ToString("0.0")</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">No reviews yet</span>
+                        }
+                    </strong>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">Orders collected</span>
+                    <strong>@_profile.CompletedOrders</strong>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">Regulars</span>
+                    <strong>@_profile.RepeatCustomers</strong>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">Cooking since</span>
+                    <strong>@_profile.JoinedAt.ToLocalTime().ToString("MMM yyyy")</strong>
+                </div>
+                <p class="field-hint mt-2 mb-0">These are calculated from real orders and reviews — you can't edit them.</p>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private SellerProfile? _profile;
+    private List<PickupLocation> _locations = new();
+
+    private string _suburb = "";
+    private string _cuisine = "";
+    private string _story = "";
+    private bool _savingProfile;
+    private bool _profileSaved;
+
+    private bool _addingLocation;
+    private bool _savingLocation;
+    private string _newLabel = "";
+    private string _newSuburb = "";
+    private string _newAddress = "";
+    private string _newInstructions = "";
+    private double _newKm = 1.2;
+    private readonly Dictionary<int, string> _locationErrors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser.OnChange += OnUserChanged;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        if (CurrentUser.CurrentUser is null || !CurrentUser.IsSeller) { _profile = null; return; }
+        _profile = await Sellers.GetProfileAsync(CurrentUser.CurrentUser.Id);
+        _locations = await Sellers.GetPickupLocationsAsync(CurrentUser.CurrentUser.Id);
+        if (_profile is not null)
+        {
+            _suburb = _profile.Suburb;
+            _cuisine = _profile.Cuisine;
+            _story = _profile.Story;
+            if (string.IsNullOrWhiteSpace(_newSuburb)) _newSuburb = _profile.Suburb;
+        }
+    }
+
+    private async Task SaveProfile()
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _savingProfile = true;
+        _profileSaved = false;
+        await Sellers.UpdateProfileAsync(CurrentUser.CurrentUser.Id, _suburb, _cuisine, _story);
+        // Refresh the cached user so the nav and every page reading
+        // SellerProfile off CurrentUser sees the new values immediately.
+        await CurrentUser.RefreshAsync();
+        await Load();
+        _savingProfile = false;
+        _profileSaved = true;
+    }
+
+    private async Task AddLocation()
+    {
+        if (CurrentUser.CurrentUser is null || string.IsNullOrWhiteSpace(_newAddress)) return;
+        _savingLocation = true;
+        await Sellers.AddPickupLocationAsync(
+            CurrentUser.CurrentUser.Id,
+            string.IsNullOrWhiteSpace(_newLabel) ? "Front door" : _newLabel,
+            _newSuburb, _newAddress, _newInstructions, _newKm);
+        _newLabel = ""; _newAddress = ""; _newInstructions = "";
+        _addingLocation = false;
+        _savingLocation = false;
+        await Load();
+    }
+
+    private async Task Delete(int locationId)
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _locationErrors.Remove(locationId);
+        var ok = await Sellers.DeletePickupLocationAsync(CurrentUser.CurrentUser.Id, locationId);
+        if (!ok)
+        {
+            // The FK is Restrict — a location still attached to a food drop
+            // can't go, and saying so beats an unhandled DbUpdateException.
+            _locationErrors[locationId] = "A food drop still uses this pickup point, so it can't be removed.";
+        }
+        await Load();
+    }
+
+    private static string DistanceLabel(double km) => km < 1 ? $"{km * 1000:0} m" : $"{km:0.0} km";
+
+    private static string VerificationBadgeClass(VerificationStatus status) => status switch
+    {
+        VerificationStatus.Verified => "badge-verified",
+        VerificationStatus.Pending => "badge-urgent",
+        VerificationStatus.ActionRequired or VerificationStatus.Expired => "badge-sold-out",
+        _ => "badge-info",
+    };
+
+    private async void OnUserChanged()
+    {
+        await Load();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => CurrentUser.OnChange -= OnUserChanged;
+}

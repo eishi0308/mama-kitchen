@@ -26,6 +26,17 @@ public enum OrderStatus
     SellerCancelled,
     Refunded,
     Disputed,
+    // Appended (never inserted mid-enum): these are persisted as ints, so
+    // reordering the members above would silently re-label every stored order.
+    BuyerCancelled,
+}
+
+// Which "world" the UI is currently serving. A single person can be both a
+// buyer and a cook, so this is a view mode, not a role on the user record.
+public enum AppMode
+{
+    Eat,
+    Cook,
 }
 
 public enum PaymentStatus

@@ -15,9 +15,22 @@ else if (_drop is null)
 {
     <div class="skeleton" style="height:280px; max-width:520px;"></div>
 }
+else if (!_drop.IsOrderable)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon"><Icon Name="clock" Size="26" /></div>
+        <h3>@(_drop.PortionsRemaining == 0 ? "This batch just sold out" : "Orders have closed for this batch")</h3>
+        <p>Nothing has been charged. @_drop.Seller?.Name may cook it again — their other food drops are on their page.</p>
+        <div class="d-flex gap-2 justify-content-center flex-wrap mt-2">
+            <a class="btn btn-primary" href="/cooks/@_drop.SellerId">See @_drop.Seller?.Name's kitchen</a>
+            <a class="btn btn-outline-secondary" href="/">Browse food nearby</a>
+        </div>
+    </div>
+}
 else
 {
     <div class="surface-card p-4 fade-in" style="max-width:520px;">
+        <a class="back-link" href="/food/@_drop.Id"><Icon Name="arrow-left" Size="15" /> Back to @_drop.Title</a>
         <h1 style="font-size:var(--fs-xl); margin-bottom:var(--space-4);">Your order</h1>
 
         <div class="d-flex align-items-center gap-3 mb-3">
@@ -82,6 +95,21 @@ else
 
         <p class="text-muted small text-center mt-2 mb-0 d-flex align-items-center justify-content-center gap-1">
             <Icon Name="lock" Size="14" /> Payment protected — held securely until your order is fulfilled.
+        </p>
+
+        @* Set expectations before the money moves, not after. Everything here
+           is a promise the app actually keeps: the code, the address reveal,
+           and the free-cancellation window are all real behaviour. *@
+        <div class="divider"></div>
+        <div class="text-muted small mb-2" style="letter-spacing:0.04em;">WHAT HAPPENS NEXT</div>
+        <ol class="text-muted small ps-3 mb-0" style="line-height:1.7;">
+            <li>You get a 4-digit pickup code and @_drop.Seller?.Name's exact address.</li>
+            <li>They cook, and your order updates as it goes — reserved, cooking, ready.</li>
+            <li>You collect in the window above and read them your code.</li>
+        </ol>
+        <p class="text-muted small mt-3 mb-0">
+            Free cancellation until @_drop.OrderDeadline.ToLocalTime().ToString("h:mm tt") — after that
+            @_drop.Seller?.Name has already shopped for your portion.
         </p>
     </div>
 }
