@@ -21,4 +21,11 @@ public class MockPaymentGateway : IPaymentGateway
         var reference = $"mock_re_{Guid.NewGuid():N}"[..24];
         return new PaymentRefundResult(Success: true, Reference: reference, FailureReason: null);
     }
+
+    public async Task<PaymentPayoutResult> PayoutAsync(int sellerUserId, decimal amount, string destination)
+    {
+        await Task.Delay(500); // a real bank transfer is the slowest leg of the three
+        var reference = $"mock_tr_{Guid.NewGuid():N}"[..24];
+        return new PaymentPayoutResult(Success: true, Reference: reference, FailureReason: null);
+    }
 }

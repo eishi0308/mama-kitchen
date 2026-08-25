@@ -31,4 +31,10 @@ public class Order
 
     public Payment? Payment { get; set; }
     public Review? Review { get; set; }
+
+    // Set when this order's earnings are included in a payout. Null means the
+    // money is still sitting in the cook's balance — which is what makes
+    // "available to cash out" a real query rather than a time-based guess.
+    public int? PayoutId { get; set; }
+    public Payout? Payout { get; set; }
 }

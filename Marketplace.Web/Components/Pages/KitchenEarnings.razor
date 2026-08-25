@@ -37,13 +37,84 @@ else
         </div>
     </div>
 
+    @* ---- The cash-out card: the third leg of the marketplace ---- *@
+    <div class="surface-card p-4 mb-4 payout-card">
+        <div class="d-flex justify-content-between align-items-start gap-4 flex-wrap">
+            <div>
+                <div class="stat-tile-label mb-1"><Icon Name="wallet" Size="14" /><span>Available to cash out</span></div>
+                <div class="rating-big money">$@_earnings.AvailableToCashOut.ToString("0.00")</div>
+                <div class="text-muted small mt-1">
+                    @if (_earnings.UnpaidOrderCount > 0)
+                    {
+                        <text>from @_earnings.UnpaidOrderCount collected @(_earnings.UnpaidOrderCount == 1 ? "order" : "orders")</text>
+                    }
+                    else
+                    {
+                        <text>Nothing waiting — you're all paid up.</text>
+                    }
+                    @if (_earnings.InFlight > 0)
+                    {
+                        <text> · <span class="money">$@_earnings.InFlight.ToString("0.00")</span> still to be collected</text>
+                    }
+                </div>
+            </div>
+
+            <div class="text-end">
+                @if (!_earnings.HasPayoutSetup)
+                {
+                    <a class="btn btn-primary" href="/kitchen/profile#payout">
+                        <Icon Name="wallet" Size="16" /> Add a payout account
+                    </a>
+                    <div class="field-hint mt-1">Needed before you can be paid</div>
+                }
+                else
+                {
+                    <button class="btn btn-primary" disabled="@(_busy || !CanCashOut())" @onclick="CashOut">
+                        @if (_busy)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <text>Transferring…</text>
+                        }
+                        else
+                        {
+                            <text>Cash out $@_earnings.AvailableToCashOut.ToString("0.00")</text>
+                        }
+                    </button>
+                    <div class="field-hint mt-1">to @_earnings.PayoutDestination</div>
+                }
+            </div>
+        </div>
+
+        @if (_payoutMessage is not null)
+        {
+            <div class="callout callout-success mt-3">
+                <Icon Name="check-circle" Size="18" />
+                <div>@_payoutMessage</div>
+            </div>
+        }
+        else if (_payoutError is not null)
+        {
+            <div class="callout callout-warn mt-3">
+                <Icon Name="warning" Size="18" />
+                <div>@_payoutError</div>
+            </div>
+        }
+        else if (_earnings.HasPayoutSetup && _earnings.AvailableToCashOut > 0 && !CanCashOut())
+        {
+            <div class="callout callout-info mt-3">
+                <Icon Name="info" Size="18" />
+                <div>Minimum payout is $@Marketplace.Web.Services.SellerService.MinimumPayout.ToString("0.00") — a bit more cooking and this unlocks.</div>
+            </div>
+        }
+    </div>
+
     <div class="stat-grid mb-4">
-        <StatTile Label="Balance" Value="@($"${_earnings.PendingPayout:0.00}")" IconName="wallet"
-                  Hint="Includes orders not yet collected" />
         <StatTile Label="Paid out" Value="@($"${_earnings.PaidOut:0.00}")" IconName="check-circle"
-                  Hint="Settled 48h after collection" />
+                  Hint="@($"{_earnings.Payouts.Count} {(_earnings.Payouts.Count == 1 ? "payout" : "payouts")}")" />
         <StatTile Label="Last 7 days" Value="@($"${_earnings.ThisWeekNet:0.00}")" IconName="trend-up"
                   Hint="@($"{_earnings.CompletedOrders} orders all time")" />
+        <StatTile Label="Still to collect" Value="@($"${_earnings.InFlight:0.00}")" IconName="clock" Muted="true"
+                  Hint="Paid for, not handed over" />
         <StatTile Label="Batch fees" Value="@($"${_earnings.PlatformFees:0.00}")" IconName="tag" Muted="true"
                   Hint="10% of collected orders" />
     </div>
@@ -71,12 +142,48 @@ else
         }
     </div>
 
+    @if (_earnings.Payouts.Count > 0)
+    {
+        <h2 class="section-heading">Payouts</h2>
+        <div class="surface-card p-2 mb-4">
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>To</th>
+                            <th>Orders</th>
+                            <th class="num">Gross</th>
+                            <th class="num">Fee</th>
+                            <th class="num">Paid</th>
+                            <th>Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var payout in _earnings.Payouts)
+                        {
+                            <tr>
+                                <td class="nowrap">@((payout.PaidAt ?? payout.CreatedAt).ToLocalTime().ToString("d MMM yyyy, h:mm tt"))</td>
+                                <td class="nowrap">@payout.Destination</td>
+                                <td>@payout.OrderCount</td>
+                                <td class="num">$@payout.GrossAmount.ToString("0.00")</td>
+                                <td class="num num-fee">−$@payout.FeeAmount.ToString("0.00")</td>
+                                <td class="num num-net">$@payout.Amount.ToString("0.00")</td>
+                                <td><code class="field-hint">@payout.Reference</code></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
     <div class="callout callout-info mb-4">
         <Icon Name="info" Size="18" />
         <div>
-            Payouts are simulated: an order settles 48 hours after collection.
-            Real money movement runs through Stripe Connect, which this build stands in for
-            behind <code>IPaymentGateway</code> — nothing here has touched a real card.
+            Money movement is simulated end to end — charge, refund and transfer all run through
+            <code>IPaymentGateway</code>, which is a mock. Nothing here has touched a real card or bank account,
+            and no full account number is ever stored: only the last four digits, for display.
         </div>
     </div>
 
@@ -103,7 +210,7 @@ else
                             <th class="num">Paid</th>
                             <th class="num">Fee</th>
                             <th class="num">You keep</th>
-                            <th>Payout</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -118,7 +225,7 @@ else
                                 <td class="num num-net">$@row.Net.ToString("0.00")</td>
                                 <td>
                                     <span class="badge-pill @(row.Settled ? "badge-success" : "badge-info")">
-                                        @(row.Settled ? "Paid out" : "Pending")
+                                        @(row.Settled ? "Paid out" : "In balance")
                                     </span>
                                 </td>
                             </tr>
@@ -131,8 +238,16 @@ else
     }
 }
 
+<style>
+    .payout-card { border-color: var(--color-border-strong); }
+</style>
+
 @code {
     private SellerEarnings? _earnings;
+    private bool _busy;
+    private string? _payoutMessage;
+    private string? _payoutError;
+
     protected override async Task OnInitializedAsync()
     {
         CurrentUser.OnChange += OnUserChanged;
@@ -143,6 +258,42 @@ else
     {
         if (CurrentUser.CurrentUser is null || !CurrentUser.IsSeller) { _earnings = null; return; }
         _earnings = await Sellers.GetEarningsAsync(CurrentUser.CurrentUser.Id);
+    }
+
+    private bool CanCashOut() =>
+        _earnings is not null && _earnings.AvailableToCashOut >= Marketplace.Web.Services.SellerService.MinimumPayout;
+
+    private async Task CashOut()
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _busy = true;
+        _payoutMessage = null;
+        _payoutError = null;
+
+        var result = await Sellers.RequestPayoutAsync(CurrentUser.CurrentUser.Id);
+        if (result.Success && result.Payout is Payout paid)
+        {
+            _payoutMessage = $"${paid.Amount:0.00} is on its way to {paid.Destination}, covering "
+                             + $"{paid.OrderCount} {(paid.OrderCount == 1 ? "order" : "orders")}. Reference {paid.Reference}.";
+        }
+        else
+        {
+            _payoutError = result.Error switch
+            {
+                PayoutError.NoPayoutMethod => "Add a payout account on your cook profile first.",
+                PayoutError.NothingToPayOut => "There's nothing waiting to be paid out right now.",
+                PayoutError.BelowMinimum => $"Minimum payout is ${Marketplace.Web.Services.SellerService.MinimumPayout:0.00}.",
+                PayoutError.TransferFailed => "The transfer didn't go through. Nothing was deducted — try again shortly.",
+                _ => "Couldn't complete the payout.",
+            };
+        }
+
+        await Load();
+        // Cashing out empties the balance, so the nav's "money ready" dot has to
+        // clear with it — the nav only reloads its counts on a user or location
+        // change, and this action is neither.
+        await CurrentUser.RefreshAsync();
+        _busy = false;
     }
 
     private async void OnUserChanged()

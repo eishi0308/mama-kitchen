@@ -192,6 +192,100 @@ public static class DbInitializer
         {
             RecomputeStats(db, profile);
         }
+
+        // Soo-jin is deliberately left without payout details: she's the new cook,
+        // and she demonstrates the "you can't be paid yet" state honestly.
+        SeedPayoutsAndReplies(db, new[] { mayaProfile, yukiProfile, minhProfile, raviProfile, amirProfile });
+    }
+
+    // Past payouts and a few cook replies, so the earnings and reviews screens
+    // open with real history instead of a zeroed-out empty state.
+    private static void SeedPayoutsAndReplies(AppDbContext db, SellerProfile[] cooks)
+    {
+        var replies = new[]
+        {
+            "Thanks so much — the kids helped fold these, so I'll pass that on.",
+            "Really glad you enjoyed it. There's another batch going up next week.",
+            "Thank you for coming out in that weather. See you next time.",
+        };
+
+        var apologies = new[]
+        {
+            "Sorry about the wait — I had two batches overlap and got behind. I've cut the pickup window down so it can't happen again.",
+            "That's fair, the portion was smaller than usual that night. I've put the serve size back up and you're welcome to a bigger one next time.",
+            "Thanks for saying so honestly. The chilli was dialled back for a big order and I should have noted that on the listing.",
+        };
+
+        var quietCount = 0;
+        var warmCount = 0;
+
+        foreach (var cook in cooks)
+        {
+            cook.PayoutAccountName = db.Users.First(u => u.Id == cook.UserId).Name;
+            cook.PayoutBsb = "062000";
+            // Only the last four digits are ever stored — see SellerProfile.
+            cook.PayoutAccountLast4 = Rng.Next(1000, 10000).ToString();
+            cook.PayoutReference = $"mock_acct_{Guid.NewGuid():N}"[..22];
+            cook.PayoutSetupAt = cook.JoinedAt.AddDays(1);
+
+            // Everything collected more than five days ago has already been paid
+            // out; the rest stays in the balance so "cash out" is live on open.
+            var cutoff = DateTime.UtcNow.AddDays(-5);
+            var settled = db.Orders
+                .Where(o => o.FoodDrop!.SellerId == cook.UserId
+                            && (o.Status == OrderStatus.Collected || o.Status == OrderStatus.BuyerNoShow)
+                            && (o.CollectedAt ?? o.CreatedAt) < cutoff)
+                .ToList();
+
+            if (settled.Count > 0)
+            {
+                var gross = settled.Sum(o => o.TotalAmount);
+                var fee = Math.Round(gross * 0.10m, 2, MidpointRounding.AwayFromZero);
+                var payout = new Payout
+                {
+                    SellerUserId = cook.UserId,
+                    Amount = gross - fee,
+                    GrossAmount = gross,
+                    FeeAmount = fee,
+                    OrderCount = settled.Count,
+                    Status = PayoutStatus.Paid,
+                    Reference = $"mock_tr_{Guid.NewGuid():N}"[..24],
+                    Destination = $"Bank ••••{cook.PayoutAccountLast4}",
+                    CreatedAt = cutoff,
+                    PaidAt = cutoff,
+                };
+                db.Payouts.Add(payout);
+                db.SaveChanges();
+
+                foreach (var order in settled) order.PayoutId = payout.Id;
+                db.SaveChanges();
+            }
+
+            // A couple of replies each, biased towards the reviews that actually
+            // need one — a cook answering a 3-star is the point of the feature.
+            var cookReviews = db.Reviews
+                .Where(r => r.Order!.FoodDrop!.SellerId == cook.UserId)
+                .OrderBy(r => r.Id)
+                .ToList();
+
+            foreach (var review in cookReviews)
+            {
+                var overall = (review.FoodQuality + review.Value + review.Accuracy + review.PickupExperience) / 4m;
+                if (overall <= 3.5m && quietCount < 4)
+                {
+                    review.SellerResponse = apologies[quietCount % apologies.Length];
+                    review.SellerRespondedAt = review.CreatedAt.AddHours(Rng.Next(2, 20));
+                    quietCount++;
+                }
+                else if (overall >= 4.5m && warmCount < 6 && Rng.Next(0, 4) == 0)
+                {
+                    review.SellerResponse = replies[warmCount % replies.Length];
+                    review.SellerRespondedAt = review.CreatedAt.AddHours(Rng.Next(2, 30));
+                    warmCount++;
+                }
+            }
+            db.SaveChanges();
+        }
     }
 
     // A fixed seed keeps the demo reproducible: the same cooks get the same

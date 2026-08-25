@@ -54,6 +54,20 @@ else
         </button>
     </div>
 
+    @* A cook cancelling is the one order event a buyer must not discover by
+       accident. It used to just move quietly into the Past tab. *@
+    @if (_recentlyCancelled is Order cancelled && cancelled.FoodDrop is not null)
+    {
+        <div class="callout callout-warn mb-4">
+            <Icon Name="warning" Size="18" />
+            <div>
+                <strong>@cancelled.FoodDrop.Seller?.Name cancelled your @cancelled.FoodDrop.Title.</strong>
+                You were refunded <span class="money">$@cancelled.TotalAmount.ToString("0.00")</span> in full@(string.IsNullOrWhiteSpace(cancelled.CancellationReason) ? "" : $" — \"{cancelled.CancellationReason}\"").
+                <a href="/orders/@cancelled.Id">See the order</a> or <a href="/">find something else</a>.
+            </div>
+        </div>
+    }
+
     @if (_tab == Tab.Active && _needsReview > 0)
     {
         @* Nudge, not nag — one line, and it disappears the moment there's
@@ -135,6 +149,7 @@ else
     private List<Order>? _orders;
     private Tab _tab = Tab.Active;
     private int _needsReview;
+    private Order? _recentlyCancelled;
 
     // "Active" means the buyer still has something coming: paid for, not yet
     // handed over. Everything else — collected, refunded, cancelled, no-show —
@@ -160,6 +175,14 @@ else
         if (CurrentUser.CurrentUser is null) { _orders = null; return; }
         _orders = await OrderService.GetForBuyerAsync(CurrentUser.CurrentUser.Id);
         _needsReview = _orders.Count(o => o.Status == OrderStatus.Collected && o.Review is null);
+
+        // Only surface a cook-cancellation from the last three days — after that
+        // it's history, not news.
+        _recentlyCancelled = _orders
+            .Where(o => o.Status == OrderStatus.SellerCancelled
+                        && o.CancelledAt is DateTime c && c > DateTime.UtcNow.AddDays(-3))
+            .OrderByDescending(o => o.CancelledAt)
+            .FirstOrDefault();
 
         // Open on whichever tab has something in it — landing on an empty
         // "Active" when you have 30 past orders reads as a broken page.

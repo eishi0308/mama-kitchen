@@ -7,6 +7,10 @@ namespace Marketplace.Web.Services;
 public class SellerService : ISellerService
 {
     private readonly AppDbContext _db;
+    private readonly IPaymentGateway _paymentGateway;
+
+    /// A payout below this isn't worth a bank transfer.
+    public const decimal MinimumPayout = 10m;
 
     // The platform's cut. A single constant, referenced by both the earnings
     // page and the order-level breakdown, so the seller can never be shown
@@ -16,9 +20,10 @@ public class SellerService : ISellerService
     public static decimal FeeOn(decimal gross) => Math.Round(gross * PlatformFeeRate, 2, MidpointRounding.AwayFromZero);
     public static decimal NetOf(decimal gross) => gross - FeeOn(gross);
 
-    public SellerService(AppDbContext db)
+    public SellerService(AppDbContext db, IPaymentGateway paymentGateway)
     {
         _db = db;
+        _paymentGateway = paymentGateway;
     }
 
     public async Task<SellerProfile?> GetProfileAsync(int userId) =>
@@ -165,6 +170,7 @@ public class SellerService : ISellerService
             .Where(r => r.Order!.FoodDrop!.SellerId == cookUserId)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new CookReview(
+                r.Id,
                 r.OrderId,
                 r.Order!.Buyer!.Name,
                 r.Order.Buyer.Avatar,
@@ -175,11 +181,34 @@ public class SellerService : ISellerService
                 r.Accuracy,
                 r.PickupExperience,
                 r.Comment,
-                r.CreatedAt))
+                r.CreatedAt,
+                r.SellerResponse,
+                r.SellerRespondedAt))
             .ToListAsync();
+
+    public Task<List<CookReview>> GetReviewsAsync(int cookUserId) => LoadReviewsAsync(cookUserId);
+
+    public async Task<bool> RespondToReviewAsync(int reviewId, int cookUserId, string response)
+    {
+        if (string.IsNullOrWhiteSpace(response)) return false;
+
+        var review = await _db.Reviews
+            .Include(r => r.Order).ThenInclude(o => o!.FoodDrop)
+            .FirstOrDefaultAsync(r => r.Id == reviewId);
+
+        // Only the cook who actually sold the meal may reply to its review.
+        if (review?.Order?.FoodDrop is null || review.Order.FoodDrop.SellerId != cookUserId) return false;
+
+        review.SellerResponse = response.Trim();
+        review.SellerRespondedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return true;
+    }
 
     public async Task<SellerEarnings> GetEarningsAsync(int cookUserId)
     {
+        var profile = await _db.SellerProfiles.AsNoTracking().FirstOrDefaultAsync(sp => sp.UserId == cookUserId);
+
         var orders = await _db.Orders.AsNoTracking()
             .Include(o => o.FoodDrop)
             .Include(o => o.Buyer)
@@ -204,11 +233,17 @@ public class SellerService : ISellerService
         var fees = earned.Sum(o => FeeOn(o.TotalAmount));
         var net = gross - fees;
 
-        // A real payout runs on a schedule; this stands in for "settled" by
-        // treating anything collected more than 48h ago as already paid out.
-        var settleCutoff = DateTime.UtcNow.AddHours(-48);
-        var paidOut = earned.Where(o => (o.CollectedAt ?? o.CreatedAt) < settleCutoff).Sum(o => NetOf(o.TotalAmount));
-        var pending = net - paidOut + inFlight.Sum(o => NetOf(o.TotalAmount));
+        // Settled means "included in a real Payout row", not "older than N
+        // hours" — so the balance and the payout history can never disagree.
+        var unpaid = earned.Where(o => o.PayoutId is null).ToList();
+        var available = unpaid.Sum(o => NetOf(o.TotalAmount));
+
+        var payouts = await _db.Payouts.AsNoTracking()
+            .Where(p => p.SellerUserId == cookUserId)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        var paidOut = payouts.Where(p => p.Status == PayoutStatus.Paid).Sum(p => p.Amount);
 
         var weekStart = DateTime.UtcNow.AddDays(-7);
         var thisWeek = earned.Where(o => (o.CollectedAt ?? o.CreatedAt) >= weekStart).Sum(o => NetOf(o.TotalAmount));
@@ -227,21 +262,99 @@ public class SellerService : ISellerService
                 o.TotalAmount,
                 FeeOn(o.TotalAmount),
                 NetOf(o.TotalAmount),
-                Settled: o.Status is OrderStatus.Collected or OrderStatus.BuyerNoShow
-                         && (o.CollectedAt ?? o.CreatedAt) < settleCutoff))
+                Settled: o.PayoutId is not null,
+                PayoutId: o.PayoutId))
             .ToList();
 
         return new SellerEarnings(
             LifetimeGross: gross,
             PlatformFees: fees,
             LifetimeNet: net,
-            PendingPayout: pending,
+            AvailableToCashOut: available,
+            InFlight: inFlight.Sum(o => NetOf(o.TotalAmount)),
             PaidOut: paidOut,
             ThisWeekNet: thisWeek,
             CompletedOrders: earned.Count,
             RefundedOrders: refunded,
-            Rows: rows);
+            UnpaidOrderCount: unpaid.Count,
+            HasPayoutSetup: profile?.HasPayoutSetup ?? false,
+            PayoutDestination: profile?.PayoutDestinationLabel ?? "No payout account",
+            Rows: rows,
+            Payouts: payouts);
     }
+
+    public async Task<bool> SetPayoutDetailsAsync(int userId, string accountName, string bsb, string accountNumber)
+    {
+        var profile = await _db.SellerProfiles.FirstOrDefaultAsync(sp => sp.UserId == userId);
+        if (profile is null) return false;
+
+        var digits = new string((accountNumber ?? "").Where(char.IsDigit).ToArray());
+        if (digits.Length < 4) return false;
+
+        profile.PayoutAccountName = accountName.Trim();
+        profile.PayoutBsb = new string((bsb ?? "").Where(char.IsDigit).ToArray());
+        // Only the last four digits are kept. `digits` goes out of scope here
+        // and is never written anywhere — see the note on SellerProfile.
+        profile.PayoutAccountLast4 = digits[^4..];
+        profile.PayoutReference ??= $"mock_acct_{Guid.NewGuid():N}"[..22];
+        profile.PayoutSetupAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<PayoutResult> RequestPayoutAsync(int userId)
+    {
+        var profile = await _db.SellerProfiles.FirstOrDefaultAsync(sp => sp.UserId == userId);
+        if (profile is null) return new PayoutResult(false, null, PayoutError.NoProfile);
+        if (!profile.HasPayoutSetup) return new PayoutResult(false, null, PayoutError.NoPayoutMethod);
+
+        var unpaid = await _db.Orders
+            .Include(o => o.FoodDrop)
+            .Where(o => o.FoodDrop!.SellerId == userId
+                        && o.PayoutId == null
+                        && (o.Status == OrderStatus.Collected || o.Status == OrderStatus.BuyerNoShow))
+            .ToListAsync();
+
+        if (unpaid.Count == 0) return new PayoutResult(false, null, PayoutError.NothingToPayOut);
+
+        var gross = unpaid.Sum(o => o.TotalAmount);
+        var fee = unpaid.Sum(o => FeeOn(o.TotalAmount));
+        var amount = gross - fee;
+
+        if (amount < MinimumPayout) return new PayoutResult(false, null, PayoutError.BelowMinimum);
+
+        var transfer = await _paymentGateway.PayoutAsync(userId, amount, profile.PayoutDestinationLabel);
+        if (!transfer.Success) return new PayoutResult(false, null, PayoutError.TransferFailed);
+
+        var payout = new Payout
+        {
+            SellerUserId = userId,
+            Amount = amount,
+            GrossAmount = gross,
+            FeeAmount = fee,
+            OrderCount = unpaid.Count,
+            Status = PayoutStatus.Paid,
+            Reference = transfer.Reference,
+            Destination = profile.PayoutDestinationLabel,
+            CreatedAt = DateTime.UtcNow,
+            PaidAt = DateTime.UtcNow,
+        };
+        _db.Payouts.Add(payout);
+        await _db.SaveChangesAsync();
+
+        // Stamping the orders is what stops the same money being paid twice.
+        foreach (var order in unpaid) order.PayoutId = payout.Id;
+        await _db.SaveChangesAsync();
+
+        return new PayoutResult(true, payout, null);
+    }
+
+    public async Task<List<Payout>> GetPayoutsAsync(int userId) =>
+        await _db.Payouts.AsNoTracking()
+            .Where(p => p.SellerUserId == userId)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
 
     public async Task RecomputeStatsAsync(int cookUserId)
     {

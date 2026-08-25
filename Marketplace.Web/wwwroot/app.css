@@ -820,3 +820,23 @@ textarea:focus-visible,
 .nowrap { white-space: nowrap; }
 .money { font-variant-numeric: tabular-nums; }
 .min-width-0 { min-width: 0; }
+
+/* Small "something's ready" marker where a count would be noise */
+.nav-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--color-primary);
+    display: inline-block;
+    flex: 0 0 auto;
+}
+
+/* A cook's public reply, shown under the review it answers */
+.seller-reply {
+    margin-top: var(--space-3);
+    padding: var(--space-3);
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--color-accent);
+    font-size: var(--fs-sm);
+}
+.seller-reply-head { display: flex; align-items: center; gap: 0.4rem; margin-bottom: var(--space-1); }
+.seller-reply-head svg { color: var(--color-accent); }

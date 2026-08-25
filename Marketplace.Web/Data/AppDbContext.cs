@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<FoodDrop> FoodDrops => Set<FoodDrop>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Payout> Payouts => Set<Payout>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<Favorite> Favorites => Set<Favorite>();
@@ -63,6 +64,21 @@ public class AppDbContext : DbContext
             .HasOne(p => p.Order)
             .WithOne(o => o.Payment)
             .HasForeignKey<Payment>(p => p.OrderId);
+
+        modelBuilder.Entity<Payout>()
+            .HasOne(p => p.Seller)
+            .WithMany()
+            .HasForeignKey(p => p.SellerUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // An order points at the payout that settled it. SetNull rather than
+        // Cascade: deleting a payout record must never delete the orders it
+        // paid for.
+        modelBuilder.Entity<Order>()
+            .HasOne(o => o.Payout)
+            .WithMany(p => p.Orders)
+            .HasForeignKey(o => o.PayoutId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<Review>()
             .HasOne(r => r.Order)

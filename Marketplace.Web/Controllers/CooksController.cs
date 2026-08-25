@@ -1,3 +1,4 @@
+using Marketplace.Web.Models;
 using Marketplace.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -31,6 +32,55 @@ public class CooksController : ControllerBase
     [HttpGet("{cookUserId:int}/earnings")]
     public async Task<ActionResult<SellerEarnings>> Earnings(int cookUserId) =>
         await _sellers.GetEarningsAsync(cookUserId);
+
+    // GET /api/cooks/5/reviews — including the cook's own replies.
+    [HttpGet("{cookUserId:int}/reviews")]
+    public async Task<ActionResult<List<CookReview>>> Reviews(int cookUserId) =>
+        await _sellers.GetReviewsAsync(cookUserId);
+
+    public record ReviewReplyRequest(string Response);
+
+    // POST /api/cooks/5/reviews/12/reply — only the cook who sold the meal.
+    [HttpPost("{cookUserId:int}/reviews/{reviewId:int}/reply")]
+    public async Task<IActionResult> ReplyToReview(int cookUserId, int reviewId, [FromBody] ReviewReplyRequest request)
+    {
+        var ok = await _sellers.RespondToReviewAsync(reviewId, cookUserId, request.Response);
+        return ok ? NoContent() : StatusCode(StatusCodes.Status403Forbidden, "That review isn't yours to answer.");
+    }
+
+    public record PayoutDetailsRequest(string AccountName, string Bsb, string AccountNumber);
+
+    // PUT /api/cooks/5/payout-account — the full account number is reduced to
+    // its last four digits and discarded; see SellerService.
+    [HttpPut("{cookUserId:int}/payout-account")]
+    public async Task<IActionResult> SetPayoutAccount(int cookUserId, [FromBody] PayoutDetailsRequest request)
+    {
+        var ok = await _sellers.SetPayoutDetailsAsync(cookUserId, request.AccountName, request.Bsb, request.AccountNumber);
+        return ok ? NoContent() : BadRequest("Couldn't save those payout details.");
+    }
+
+    // POST /api/cooks/5/payouts — cash out everything collected and unpaid.
+    [HttpPost("{cookUserId:int}/payouts")]
+    public async Task<ActionResult<Payout>> CashOut(int cookUserId)
+    {
+        var result = await _sellers.RequestPayoutAsync(cookUserId);
+        if (result.Success) return result.Payout!;
+
+        return result.Error switch
+        {
+            PayoutError.NoProfile => NotFound("That user doesn't have a kitchen."),
+            PayoutError.NoPayoutMethod => BadRequest("No payout account has been set up."),
+            PayoutError.NothingToPayOut => Conflict("There's nothing waiting to be paid out."),
+            PayoutError.BelowMinimum => Conflict($"Minimum payout is ${SellerService.MinimumPayout:0.00}."),
+            PayoutError.TransferFailed => StatusCode(502, "The transfer could not be completed."),
+            _ => BadRequest(),
+        };
+    }
+
+    // GET /api/cooks/5/payouts
+    [HttpGet("{cookUserId:int}/payouts")]
+    public async Task<ActionResult<List<Payout>>> Payouts(int cookUserId) =>
+        await _sellers.GetPayoutsAsync(cookUserId);
 
     public record OnboardRequest(
         string Suburb, string Cuisine, string Story,

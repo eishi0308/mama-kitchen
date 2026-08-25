@@ -47,6 +47,15 @@ public enum PaymentStatus
     Refunded,
 }
 
+// Money going out to a cook, as opposed to PaymentStatus which is money coming
+// in from a buyer. Separate lifecycles, so separate enums.
+public enum PayoutStatus
+{
+    Pending,
+    Paid,
+    Failed,
+}
+
 // Australian food-business compliance is council/state/food-type dependent —
 // this app can't determine legality, only track where a seller is in the process.
 public enum VerificationStatus

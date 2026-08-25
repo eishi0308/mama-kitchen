@@ -20,6 +20,23 @@ public class SellerProfile
     public int CompletedOrders { get; set; }
     public int RepeatCustomers { get; set; }
 
+    // --- Payout details ---
+    // The full account number is NEVER stored. The form takes it, derives the
+    // last four digits for display, and discards the rest — a real build hands
+    // it straight to Stripe and keeps only the returned account token. Storing
+    // full bank details here would be the worst decision in the codebase.
+    public string? PayoutAccountName { get; set; }
+    public string? PayoutBsb { get; set; }
+    public string? PayoutAccountLast4 { get; set; }
+    public string? PayoutReference { get; set; } // stand-in for a Stripe connected-account id
+    public DateTime? PayoutSetupAt { get; set; }
+
+    /// A cook can post and sell without this, but can't be paid until it's set.
+    public bool HasPayoutSetup => !string.IsNullOrWhiteSpace(PayoutAccountLast4);
+
+    public string PayoutDestinationLabel =>
+        HasPayoutSetup ? $"Bank ••••{PayoutAccountLast4}" : "No payout account";
+
     public List<PickupLocation> PickupLocations { get; set; } = new();
     public List<FoodDrop> FoodDrops { get; set; } = new();
 }

@@ -168,6 +168,21 @@ else
                         <span>As described @review.Accuracy/5</span>
                         <span>Pickup @review.PickupExperience/5</span>
                     </div>
+
+                    @* A cook's answer sits with the review it answers. Seeing how
+                       someone handles a bad night tells a buyer more than the star
+                       average does. *@
+                    @if (review.IsAnswered)
+                    {
+                        <div class="seller-reply">
+                            <div class="seller-reply-head">
+                                <Icon Name="chef-hat" Size="14" />
+                                <strong>@p.Cook.Name replied</strong>
+                                <span class="review-dish">· @review.SellerRespondedAt?.ToLocalTime().ToString("d MMM yyyy")</span>
+                            </div>
+                            <p class="mb-0">@review.SellerResponse</p>
+                        </div>
+                    }
                 </div>
             }
 

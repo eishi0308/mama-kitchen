@@ -69,6 +69,77 @@ else
                 </div>
             </div>
 
+            @* ---- How the cook actually gets paid ---- *@
+            <div class="surface-card p-4 mb-4" id="payout">
+                <h2 class="form-section-title" style="font-size:var(--fs-base);">Getting paid</h2>
+                <p class="form-section-hint">
+                    Where Batch sends your earnings. You can post and sell without this — you just can't
+                    cash out until it's set.
+                </p>
+
+                @if (_profile.HasPayoutSetup && !_editingPayout)
+                {
+                    <div class="handover-row">
+                        <Icon Name="wallet" Size="20" Class="text-muted" />
+                        <div class="flex-grow-1" style="min-width:180px;">
+                            <div class="fw-bold">@_profile.PayoutDestinationLabel</div>
+                            <div class="kitchen-meta">
+                                @_profile.PayoutAccountName · BSB @FormatBsb(_profile.PayoutBsb)
+                            </div>
+                            <div class="kitchen-meta">Added @_profile.PayoutSetupAt?.ToLocalTime().ToString("d MMM yyyy")</div>
+                        </div>
+                        <span class="badge-pill badge-success"><Icon Name="check" Size="13" /> Ready</span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => _editingPayout = true">Change</button>
+                    </div>
+                    <p class="field-hint mt-3 mb-0">
+                        Only the last four digits are stored. Batch never keeps your full account number.
+                    </p>
+                }
+                else
+                {
+                    @if (!_profile.HasPayoutSetup)
+                    {
+                        <div class="callout callout-warn mb-3">
+                            <Icon Name="warning" Size="18" />
+                            <div>No payout account yet, so your balance can't be cashed out.</div>
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label">Account name</label>
+                        <input class="form-control" @bind="_payoutName" placeholder="As it appears on your bank account" />
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-5 mb-3">
+                            <label class="form-label">BSB</label>
+                            <input class="form-control" @bind="_payoutBsb" placeholder="062-000" inputmode="numeric" />
+                        </div>
+                        <div class="col-sm-7 mb-3">
+                            <label class="form-label">Account number</label>
+                            <input class="form-control" @bind="_payoutAccount" placeholder="12345678" inputmode="numeric" />
+                            <div class="field-hint">Only the last 4 digits are stored, for display.</div>
+                        </div>
+                    </div>
+
+                    @if (_payoutError is not null)
+                    {
+                        <p class="text-danger small">@_payoutError</p>
+                    }
+
+                    <div class="d-flex gap-2 align-items-center">
+                        <button class="btn btn-primary" disabled="@_savingPayout" @onclick="SavePayout">Save payout account</button>
+                        @if (_profile.HasPayoutSetup)
+                        {
+                            <button class="btn btn-outline-secondary" @onclick="() => _editingPayout = false">Cancel</button>
+                        }
+                        @if (_payoutSaved)
+                        {
+                            <span class="badge-pill badge-success"><Icon Name="check" Size="13" /> Saved</span>
+                        }
+                    </div>
+                }
+            </div>
+
             <div class="surface-card p-4">
                 <h2 class="form-section-title" style="font-size:var(--fs-base);">Pickup points</h2>
                 <p class="form-section-hint">
@@ -210,6 +281,14 @@ else
     private bool _savingProfile;
     private bool _profileSaved;
 
+    private bool _editingPayout;
+    private bool _savingPayout;
+    private bool _payoutSaved;
+    private string? _payoutError;
+    private string _payoutName = "";
+    private string _payoutBsb = "";
+    private string _payoutAccount = "";
+
     private bool _addingLocation;
     private bool _savingLocation;
     private string _newLabel = "";
@@ -236,6 +315,7 @@ else
             _cuisine = _profile.Cuisine;
             _story = _profile.Story;
             if (string.IsNullOrWhiteSpace(_newSuburb)) _newSuburb = _profile.Suburb;
+            if (string.IsNullOrWhiteSpace(_payoutName)) _payoutName = _profile.PayoutAccountName ?? CurrentUser.CurrentUser!.Name;
         }
     }
 
@@ -280,6 +360,36 @@ else
         }
         await Load();
     }
+
+    private async Task SavePayout()
+    {
+        if (CurrentUser.CurrentUser is null) return;
+        _payoutError = null;
+        _payoutSaved = false;
+
+        var digits = new string((_payoutAccount ?? "").Where(char.IsDigit).ToArray());
+        if (string.IsNullOrWhiteSpace(_payoutName)) { _payoutError = "Enter the account name."; return; }
+        if (new string((_payoutBsb ?? "").Where(char.IsDigit).ToArray()).Length != 6) { _payoutError = "An Australian BSB is 6 digits."; return; }
+        if (digits.Length < 6) { _payoutError = "That doesn't look like a full account number."; return; }
+
+        _savingPayout = true;
+        var ok = await Sellers.SetPayoutDetailsAsync(CurrentUser.CurrentUser.Id, _payoutName, _payoutBsb, _payoutAccount);
+        if (!ok) _payoutError = "Couldn't save those payout details.";
+
+        // The account number is cleared from the form immediately — there's no
+        // reason for it to sit in the component's memory once it's been reduced
+        // to its last four digits.
+        _payoutAccount = "";
+        _editingPayout = false;
+        _payoutSaved = ok;
+        _savingPayout = false;
+
+        await CurrentUser.RefreshAsync();
+        await Load();
+    }
+
+    private static string FormatBsb(string? bsb) =>
+        bsb is { Length: 6 } ? $"{bsb[..3]}-{bsb[3..]}" : bsb ?? "";
 
     private static string DistanceLabel(double km) => km < 1 ? $"{km * 1000:0} m" : $"{km:0.0} km";
 

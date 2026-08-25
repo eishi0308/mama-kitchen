@@ -3,6 +3,7 @@
 @inject Marketplace.Web.Data.AppDbContext Db
 @inject IOrderService OrderService
 @inject IFoodDropService FoodDropService
+@inject ISellerService Sellers
 @inject NavigationManager Nav
 @implements IDisposable
 
@@ -92,6 +93,19 @@
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="kitchen/earnings">
                     <Icon Name="wallet" Class="nav-icon" /> Earnings
+                    @if (_cashOutReady)
+                    {
+                        <span class="nav-dot ms-auto" title="Money ready to cash out"></span>
+                    }
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="kitchen/reviews">
+                    <Icon Name="star" Class="nav-icon" /> Reviews
+                    @if (_unansweredReviews > 0)
+                    {
+                        <span class="nav-badge ms-auto">@_unansweredReviews</span>
+                    }
                 </NavLink>
             </div>
             <div class="nav-item px-3">
@@ -204,6 +218,8 @@
     private List<User> _allUsers = new();
     private int _activeOrders;
     private int _actionsNeeded;
+    private int _unansweredReviews;
+    private bool _cashOutReady;
 
     protected override async Task OnInitializedAsync()
     {
@@ -275,10 +291,20 @@
         var orders = await OrderService.GetForBuyerAsync(CurrentUser.CurrentUser.Id);
         _activeOrders = orders.Count(o => o.Status is OrderStatus.Confirmed or OrderStatus.Preparing or OrderStatus.Ready);
 
+        _unansweredReviews = 0;
+        _cashOutReady = false;
+
         if (CurrentUser.IsSeller)
         {
             var kitchen = await FoodDropService.GetKitchenSummaryAsync(CurrentUser.CurrentUser.Id);
             _actionsNeeded = kitchen.ActionsNeeded;
+
+            var reviews = await Sellers.GetReviewsAsync(CurrentUser.CurrentUser.Id);
+            _unansweredReviews = reviews.Count(r => !r.IsAnswered);
+
+            var earnings = await Sellers.GetEarningsAsync(CurrentUser.CurrentUser.Id);
+            _cashOutReady = earnings.HasPayoutSetup
+                            && earnings.AvailableToCashOut >= Marketplace.Web.Services.SellerService.MinimumPayout;
         }
     }
 

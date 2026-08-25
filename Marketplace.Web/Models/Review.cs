@@ -16,4 +16,10 @@ public class Review
     public string Comment { get; set; } = "";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // A cook's public reply. One per review, and only the cook who sold the
+    // meal can write it — a review nobody can answer is a review, not a
+    // conversation, and quiet failures never get explained.
+    public string? SellerResponse { get; set; }
+    public DateTime? SellerRespondedAt { get; set; }
 }

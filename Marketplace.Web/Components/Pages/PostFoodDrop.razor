@@ -53,6 +53,17 @@ else
         <a class="back-link" href="/kitchen/drops/@Id"><Icon Name="arrow-left" Size="15" /> Back to this batch</a>
     }
 
+    @if (_copiedFromTitle is not null)
+    {
+        <div class="callout callout-info mb-4">
+            <Icon Name="package" Size="18" />
+            <div>
+                Copied from your previous <strong>@_copiedFromTitle</strong> batch. Everything's editable, and the
+                timing has been reset to today — set when orders close and when people collect.
+            </div>
+        </div>
+    }
+
     @if (_isWelcome)
     {
         <div class="callout callout-success mb-4">
@@ -276,9 +287,14 @@ else
 @code {
     [Parameter] public int? Id { get; set; }
     [SupplyParameterFromQuery(Name = "welcome")] public string? Welcome { get; set; }
+    /// Id of a previous batch to copy. Cooks repeat the same dish weekly, so
+    /// retyping the whole listing every time is the wrong default.
+    [SupplyParameterFromQuery(Name = "from")] public int? From { get; set; }
 
     private bool IsEdit => Id.HasValue;
     private bool _isWelcome;
+    private bool _copied;
+    private string? _copiedFromTitle;
 
     private List<Category> _categories = new();
     private List<PickupLocation> _pickupLocations = new();
@@ -330,6 +346,28 @@ else
                 PickupLocationId = _editTarget.PickupLocationId,
             };
             return;
+        }
+
+        // Copy a previous batch: same dish, fresh timing. Never carries the old
+        // pickup window across, or the drop would be born already closed.
+        if (From is int sourceId && !_copied)
+        {
+            var source = await FoodDropService.GetForEditAsync(sourceId, CurrentUser.CurrentUser.Id);
+            if (source is not null)
+            {
+                _copied = true;
+                _copiedFromTitle = source.Title;
+                _form.Title = source.Title;
+                _form.Description = source.Description;
+                _form.ImageEmoji = source.ImageEmoji;
+                _form.Price = source.Price;
+                _form.Portions = source.PortionsTotal;
+                _form.Ingredients = source.Ingredients;
+                _form.Allergens = source.Allergens;
+                _form.Dietary = source.Dietary;
+                _form.CategoryId = source.CategoryId;
+                _form.PickupLocationId = source.PickupLocationId;
+            }
         }
 
         if (_form.CategoryId == 0 && _categories.Count > 0) _form.CategoryId = _categories[0].Id;

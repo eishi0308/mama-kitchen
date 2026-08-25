@@ -58,6 +58,19 @@ else
         </div>
     </div>
 
+    @* Getting paid is part of the job, so an unset payout account is a first-class
+       nudge rather than something buried in settings. *@
+    @if (!profile.HasPayoutSetup)
+    {
+        <div class="callout callout-warn mb-3">
+            <Icon Name="wallet" Size="18" />
+            <div>
+                <strong>You can't be paid yet.</strong> Add a payout account and your balance can be cashed out.
+                <a href="/kitchen/profile#payout">Add one now</a>.
+            </div>
+        </div>
+    }
+
     @if (profile.VerificationStatus != VerificationStatus.Verified)
     {
         <div class="callout callout-warn mb-4">
@@ -126,7 +139,7 @@ else
             @foreach (var item in _summary.Past.Take(_showAllPast ? _summary.Past.Count : 5))
             {
                 var d = item.Drop;
-                <a class="kitchen-row" href="/kitchen/drops/@d.Id">
+                <div class="kitchen-row">
                     <div class="kitchen-row-head">
                         <span class="kitchen-emoji">@d.ImageEmoji</span>
                         <div class="flex-grow-1 min-width-0">
@@ -149,7 +162,18 @@ else
                             <div class="kitchen-meta">you kept</div>
                         </div>
                     </div>
-                </a>
+                    <div class="d-flex gap-2 flex-wrap mt-3">
+                        <a class="btn btn-sm btn-outline-secondary" href="/kitchen/drops/@d.Id">
+                            <Icon Name="list" Size="15" /> Details
+                        </a>
+                        @if (d.Status != FoodDropStatus.Cancelled)
+                        {
+                            <a class="btn btn-sm btn-outline-secondary" href="/post?from=@d.Id">
+                                <Icon Name="package" Size="15" /> Cook this again
+                            </a>
+                        }
+                    </div>
+                </div>
             }
         </div>
         @if (_summary.Past.Count > 5)

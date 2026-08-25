@@ -33,19 +33,35 @@ batches) → checkout → order tracking with a live status track and a 4-digit 
 free cancellation with refund until orders close → rate the meal across four dimensions →
 order again.
 
-**Cook** — Start selling (one screen: your story, and where people collect) → post a batch
-with a live preview of the buyer's card → kitchen dashboard (what to cook today, what to
-hand over, balance) → per-batch management: drive it through *taking orders → cooking →
-ready → done*, confirm each pickup by code, refund or mark a no-show → earnings with the
-platform fee broken out → edit your public profile and pickup points.
+**Cook** — Start selling (one screen: your story, and where people collect) → add a payout
+account → post a batch with a live preview of the buyer's card → kitchen dashboard (what to
+cook today, what to hand over, balance) → per-batch management: drive it through *taking
+orders → cooking → ready → done*, confirm each pickup by code, refund or mark a no-show →
+**cash out to your bank** → read and reply to reviews → cook the same batch again in two
+clicks.
 
 Advancing a batch cascades onto every live order, so the buyer's tracker moves the moment
 the cook taps a button.
 
+### The money, end to end
+
+All three legs run through `IPaymentGateway`, which is mocked:
+
+| Leg | Trigger | Record |
+|---|---|---|
+| **In** — buyer is charged | Checkout | `Payment` (Succeeded) |
+| **Back** — buyer is refunded | Buyer cancels before deadline, or cook cancels | `Payment` → Refunded |
+| **Out** — cook is paid | Cook cashes out their balance | `Payout`, and every order it covers is stamped |
+
+A cook's balance is the net of collected orders **not yet attached to a payout** — not a
+time-based estimate — so the balance and the payout history can never disagree, and the
+same money can't be paid out twice. No full bank account number is ever stored: the form
+takes it, derives the last four digits, and discards the rest.
+
 ## Structure
 
-- `Models/` — `FoodDrop`, `SellerProfile`, `PickupLocation`, `Order`, `Payment`, `Review`,
-  `User`, `Category`, `Message`, `Favorite`
+- `Models/` — `FoodDrop`, `SellerProfile`, `PickupLocation`, `Order`, `Payment`, `Payout`,
+  `Review`, `User`, `Category`, `Message`, `Favorite`
 - `Data/` — `AppDbContext` (EF Core) + `DbInitializer` (demo data + trading history)
 - `Services/` — business logic shared by the UI and the API: `FoodDropService`,
   `OrderService`, `SellerService`, `MessageService`, `FavoriteService`,
@@ -55,7 +71,8 @@ the cook taps a button.
   `/api/categories`, `/api/messages`, `/api/favorites`, `/api/users`
 - `Components/Pages/` — buyer: `Home`, `FoodDropDetail`, `CookProfile`, `Checkout`,
   `OrderDetail`, `MyOrders`, `Favorites`, `Messages`; cook: `SellerOnboarding`, `Kitchen`,
-  `KitchenDrop`, `PostFoodDrop` (create + edit), `KitchenEarnings`, `KitchenProfile`
+  `KitchenDrop`, `PostFoodDrop` (create + edit + repeat), `KitchenEarnings`,
+  `KitchenReviews`, `KitchenProfile`
 - `Components/Shared/` — `MealCard`, `Icon`, `StarRating`, `OrderStatusTrack`, `StatTile`
 
 ## Routes
@@ -67,9 +84,10 @@ the cook taps a button.
 | `/checkout/{id}` | Checkout | `/kitchen/drops/{id}` | Manage one batch |
 | `/orders` | My orders | `/kitchen/drops/{id}/edit` | Edit a batch |
 | `/orders/{id}` | Order tracking | `/post` | New food drop |
-| `/cooks/{id}` | Cook's public page | `/kitchen/earnings` | Earnings |
-| `/favorites` | Saved | `/kitchen/profile` | Profile + pickup points |
-| `/messages` | Shared by both sides | | |
+| `/cooks/{id}` | Cook's public page | `/post?from={id}` | Repeat a past batch |
+| `/favorites` | Saved | `/kitchen/earnings` | Earnings + cash out |
+| `/messages` | Shared by both sides | `/kitchen/reviews` | Reviews + replies |
+| | | `/kitchen/profile` | Profile, payout account, pickup points |
 
 ## Rules the app actually enforces
 
@@ -82,18 +100,21 @@ the cook taps a button.
 - A no-show is only available once the pickup window has closed, and is not refunded.
 - Reviews can only be left on a collected order, once, and recompute the cook's rating.
 - A batch can't be edited below the portions buyers already reserved.
+- A cook can't be paid without a payout account, can't cash out below $10, and the same
+  earnings can never be paid out twice.
+- Only the cook who sold a meal can reply to its review.
 
 ## Notes
 
 - No real photo upload — food drops show an emoji placeholder, or paste an image URL.
 - "Login" is a fake per-browser selection stored in localStorage, not real auth. The API
   therefore takes a user id as a query parameter where real auth would supply it.
-- Payment is mocked (`MockPaymentGateway`) — no real money moves. Payouts are simulated as
-  settling 48h after collection. The platform fee is 10% (`SellerService.PlatformFeeRate`).
+- Payment is mocked (`MockPaymentGateway`) — no real money moves, in either direction. The
+  platform fee is 10% (`SellerService.PlatformFeeRate`) and the minimum payout is $10.
 - Seeded current drops are generated *relative to when you first run the app*, so if you
   first run it at 2am the pickup windows are early-morning. Delete the db and rerun during
   the day for evening windows.
 - Not yet done (by design, for this pass): SQL Server/Postgres (currently SQLite),
-  automated tests, CI/CD, real Azure deployment, real auth, photo upload, push
+  automated tests, CI/CD, real Azure deployment, real auth, photo upload, email/push
   notifications, and the `Disputed` order state (modelled, no UI).
 - To reset all data, stop the app and delete `Marketplace.Web/marketplace.db`.
