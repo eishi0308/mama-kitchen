@@ -220,6 +220,14 @@ else
             }
         </div>
 
+        @* The one instruction that matters right now. Every state answers it. *@
+        @if (!isSeller && BuyerNextStep(order, drop) is BuyerAction action)
+        {
+            <NextStep Title="@action.Title" Eyebrow="@action.Eyebrow" IconName="@action.Icon" Tone="@action.Tone">
+                @action.Detail
+            </NextStep>
+        }
+
         @* ---------------- Buyer: review ---------------- *@
         @if (!isSeller && order.Status == OrderStatus.Collected)
         {
@@ -331,6 +339,22 @@ else
                         }
                     }
                 </div>
+
+                <PerspectiveSwitch TargetUserId="drop.SellerId"
+                                   TargetName="@(drop.Seller?.Name ?? "the cook")"
+                                   TargetAvatar="@(drop.Seller?.Avatar ?? "🧑‍🍳")"
+                                   TargetUrl="@($"/kitchen/drops/{drop.Id}")"
+                                   Explanation="@($"This same order sits in {drop.Seller?.Name}'s handover queue right now. Jump over to type in your pickup code and watch this page update.")" />
+            </div>
+        }
+        else
+        {
+            <div class="surface-card p-4">
+                <PerspectiveSwitch TargetUserId="order.BuyerId"
+                                   TargetName="@(order.Buyer?.Name ?? "the buyer")"
+                                   TargetAvatar="@(order.Buyer?.Avatar ?? "🙂")"
+                                   TargetUrl="@($"/orders/{order.Id}")"
+                                   Explanation="@($"See what {order.Buyer?.Name} sees: their pickup code, your address, and the tracker that moves when you mark this batch cooking or ready.")" />
             </div>
         }
     </div>
@@ -423,6 +447,58 @@ else
             _reorderTarget = more.FirstOrDefault(d => d.IsOrderable && d.Title == _order.FoodDrop.Title)
                              ?? more.FirstOrDefault(d => d.IsOrderable);
         }
+    }
+
+    private record BuyerAction(string Title, string Eyebrow, string Icon, string? Tone, string Detail);
+
+    /// The single instruction for the buyer's current state. Returning null
+    /// means there is genuinely nothing for them to do.
+    private static BuyerAction? BuyerNextStep(Order o, FoodDrop drop)
+    {
+        var window = $"{drop.PickupWindowStart.ToLocalTime():h:mm tt}–{drop.PickupWindowEnd.ToLocalTime():h:mm tt}";
+        var place = drop.PickupLocation?.ExactAddress ?? drop.PickupLocation?.Suburb ?? "";
+
+        return o.Status switch
+        {
+            OrderStatus.Confirmed => new BuyerAction(
+                $"Collect between {window}",
+                "Next step", "clock", null,
+                $"Head to {place} inside that window and read out code {o.PickupCode}. {drop.Seller?.Name} will start cooking closer to the time — this page updates when they do."),
+
+            OrderStatus.Preparing => new BuyerAction(
+                $"{drop.Seller?.Name} is cooking now",
+                "Happening now", "flame", null,
+                $"Nothing to do yet. Be at {place} between {window} with code {o.PickupCode}."),
+
+            OrderStatus.Ready => new BuyerAction(
+                "Your food is ready — go and get it",
+                "Do this now", "check-circle", "success",
+                $"{place}. Read out code {o.PickupCode} when you arrive and {drop.Seller?.Name} will close the order."),
+
+            OrderStatus.Collected when o.Review is null => new BuyerAction(
+                "Rate your meal",
+                "Last step", "star", null,
+                $"Four quick ratings below. It's the only thing that sets {drop.Seller?.Name}'s public rating, and it's how the next person decides whether to trust their kitchen."),
+
+            OrderStatus.Collected => new BuyerAction(
+                "All done — nothing left to do",
+                "Finished", "check-circle", "success",
+                "You collected this meal and rated it. Order it again any time from the cook's page."),
+
+            OrderStatus.Ready or OrderStatus.PendingPayment => null,
+
+            OrderStatus.SellerCancelled or OrderStatus.Refunded => new BuyerAction(
+                "You've been refunded in full",
+                "Nothing owed", "wallet", "warn",
+                "Nothing further is needed from you. Your money went back to the card you paid with."),
+
+            OrderStatus.BuyerNoShow => new BuyerAction(
+                "This one wasn't collected",
+                "Finished", "warning", "warn",
+                "The pickup window closed before you arrived, so this order wasn't refunded — the food had already been made."),
+
+            _ => null,
+        };
     }
 
     private static bool RevealAddress(OrderStatus status) =>

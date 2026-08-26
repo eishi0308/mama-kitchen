@@ -1,0 +1,40 @@
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Nav
+
+@* The thing that makes a two-sided marketplace legible: jump to the exact same
+   order, seen from the other person's side. Without it the buyer flow and the
+   cook flow are two apps that happen to share a database — you can never watch
+   a handover happen from both ends.
+
+   This is a demo affordance and says so. Real auth means you are one person. *@
+
+<div class="perspective">
+    <div class="perspective-head">
+        <Icon Name="users" Size="15" />
+        <span>See the other side</span>
+    </div>
+    <p class="perspective-body">@Explanation</p>
+    <button class="btn btn-sm btn-outline-secondary" @onclick="Switch">
+        <span class="perspective-avatar">@TargetAvatar</span>
+        View as @TargetName
+        <Icon Name="arrow-right" Size="14" />
+    </button>
+    <div class="perspective-note">Switches the demo user, like the sidebar dropdown.</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int TargetUserId { get; set; }
+    [Parameter, EditorRequired] public string TargetName { get; set; } = "";
+    [Parameter] public string TargetAvatar { get; set; } = "🙂";
+    /// Where to land once we're that person — the matching page for this order.
+    [Parameter, EditorRequired] public string TargetUrl { get; set; } = "";
+    [Parameter] public string Explanation { get; set; } = "";
+
+    private async Task Switch()
+    {
+        await CurrentUser.LoginAsync(TargetUserId);
+        // Force a full reload so every page's state is rebuilt as the new user
+        // rather than half-rendered from the previous one's circuit state.
+        Nav.NavigateTo(TargetUrl, forceLoad: true);
+    }
+}

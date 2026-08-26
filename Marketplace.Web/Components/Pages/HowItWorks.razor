@@ -1,0 +1,183 @@
+@page "/how-it-works"
+@inject CurrentUserService CurrentUser
+@implements IDisposable
+
+@* One page that answers "what actually happens, start to finish, on both
+   sides". Everything described here is behaviour the app really has — this
+   page is a map of the product, not a brochure for it. *@
+
+<PageTitle>How Batch works — Batch</PageTitle>
+
+<div class="mb-5" style="max-width:760px;">
+    <span class="badge-pill badge-verified mb-2"><Icon Name="fork-knife" Size="13" /> The whole journey</span>
+    <h1 style="font-size:var(--fs-2xl); margin-bottom:0.2em;">One meal, two people, five steps each.</h1>
+    <p class="text-muted" style="font-size:var(--fs-md);">
+        A neighbour cooks a batch. You reserve a portion before they shop, so nothing is wasted.
+        You collect it from their door and read out a code. They get paid. That's the whole product —
+        here is every step of it from both sides.
+    </p>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-lg-6">
+        <div class="hiw-lane">
+            <div class="hiw-lane-head">
+                <Icon Name="fork-knife" Size="20" />
+                <h2>If you're eating</h2>
+            </div>
+            <p class="hiw-lane-sub">From hungry to fed, and what it costs you.</p>
+
+            @foreach (var (step, i) in BuyerSteps().Select((s, i) => (s, i)))
+            {
+                <div class="hiw-step">
+                    <span class="hiw-num">@(i + 1)</span>
+                    <div>
+                        <div class="hiw-step-title">@step.Title</div>
+                        <div class="hiw-step-body">@step.Body</div>
+                    </div>
+                </div>
+            }
+
+            <a class="btn btn-primary mt-4" href="/">Find food near you</a>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="hiw-lane">
+            <div class="hiw-lane-head">
+                <Icon Name="chef-hat" Size="20" />
+                <h2>If you're cooking</h2>
+            </div>
+            <p class="hiw-lane-sub">From an idea for dinner to money in your account.</p>
+
+            @foreach (var (step, i) in CookSteps().Select((s, i) => (s, i)))
+            {
+                <div class="hiw-step">
+                    <span class="hiw-num">@(i + 1)</span>
+                    <div>
+                        <div class="hiw-step-title">@step.Title</div>
+                        <div class="hiw-step-body">@step.Body</div>
+                    </div>
+                </div>
+            }
+
+            @if (CurrentUser.IsSeller)
+            {
+                <a class="btn btn-primary mt-4" href="/kitchen">Go to your kitchen</a>
+            }
+            else
+            {
+                <a class="btn btn-primary mt-4" href="/sell/start">Start selling</a>
+            }
+        </div>
+    </div>
+</div>
+
+<h2 class="section-heading">Where the money goes</h2>
+<div class="surface-card p-4 mb-5" style="max-width:820px;">
+    <div class="money-leg">
+        <span class="money-leg-tag money-in">In</span>
+        <div>
+            <div class="hiw-step-title">The buyer is charged at checkout</div>
+            <div class="hiw-step-body">
+                The total is always calculated on the server, and each order snapshots the price it was
+                bought at — so a cook changing their price later never re-charges anyone.
+            </div>
+        </div>
+    </div>
+    <div class="money-leg">
+        <span class="money-leg-tag money-back">Back</span>
+        <div>
+            <div class="hiw-step-title">Refunds are automatic, not a negotiation</div>
+            <div class="hiw-step-body">
+                A buyer cancels free until orders close. A cook can cancel any time and the buyer is
+                always refunded in full — cancelling a whole batch refunds every live order on it, and
+                the portions go back up for sale. A refund carries no platform fee.
+            </div>
+        </div>
+    </div>
+    <div class="money-leg">
+        <span class="money-leg-tag money-out">Out</span>
+        <div>
+            <div class="hiw-step-title">The cook cashes out to their bank</div>
+            <div class="hiw-step-body">
+                Batch keeps 10% of each collected order; the cook keeps the other 90%. Their balance is
+                everything they've handed over that isn't already attached to a payout, so it can never
+                be paid twice. Minimum payout is $@Marketplace.Web.Services.SellerService.MinimumPayout.ToString("0").
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="section-heading">The bits people worry about</h2>
+<div class="row g-3 mb-5">
+    @foreach (var item in Assurances())
+    {
+        <div class="col-md-6 col-lg-3">
+            <div class="stat-tile stat-tile-muted h-100">
+                <div class="stat-tile-label"><Icon Name="@item.Icon" Size="14" /><span>@item.Title</span></div>
+                <div class="hiw-step-body mt-2">@item.Body</div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="callout callout-info" style="max-width:820px;">
+    <Icon Name="info" Size="18" />
+    <div>
+        <strong>This is a demo.</strong> "Logging in" is picking a name from the sidebar, and no real money
+        moves in any direction — charges, refunds and payouts all run through a mock gateway. Everything
+        else described on this page is real behaviour you can drive right now, from either side.
+        On an order page you'll find a <em>"See the other side"</em> card that switches you to the other
+        person so you can watch the same handover from both ends.
+    </div>
+</div>
+
+@code {
+    private record Step(string Title, string Body);
+    private record Assurance(string Icon, string Title, string Body);
+
+    private static IEnumerable<Step> BuyerSteps() => new[]
+    {
+        new Step("Find something for tonight",
+            "Browse what's cooking near you, filtered by cuisine, price, dietary needs or how soon it's ready. Every listing shows the cook, their rating and how far away they are."),
+        new Step("Check who's cooking",
+            "Open the cook's page: their story, whether they're verified, every review with separate scores for food, value, accuracy and pickup. Message them a question before you commit."),
+        new Step("Reserve and pay",
+            "Pick how many portions and pay. Your portions are held immediately — a batch can't oversell, even if two people tap Reserve at the same moment."),
+        new Step("Get your code and address",
+            "Only now do you see the cook's exact address and pickup instructions. You also get a 4-digit code, and your order starts tracking: reserved, then cooking, then ready."),
+        new Step("Collect, then rate it",
+            "Turn up in the pickup window and read out your code. The cook types it in and the order closes. Then you rate the meal on four things, which updates their public rating."),
+    };
+
+    private static IEnumerable<Step> CookSteps() => new[]
+    {
+        new Step("Set up your kitchen",
+            "One screen: your suburb, what you cook, your story, and where people collect from. Add a payout account so you can actually be paid. Takes about a minute."),
+        new Step("Post a batch",
+            "Dish, price, how many portions, when orders close and when people collect. A live preview shows exactly what buyers will see, and what you'll keep after fees."),
+        new Step("Watch orders come in",
+            "Orders close before you cook, so you shop for exactly what sold — nothing wasted. Your dashboard shows what to cook today and what's still to hand over."),
+        new Step("Cook, then hand over",
+            "Tap Start cooking and Ready for pickup — every buyer's tracker moves at the same moment. At the door, type in each person's code to close their order."),
+        new Step("Get paid",
+            "Collected orders land in your balance, minus the 10% fee. Cash out to your bank whenever you like, and reply to your reviews from the same place."),
+    };
+
+    private static IEnumerable<Assurance> Assurances() => new[]
+    {
+        new Assurance("lock", "Your address",
+            "Buyers only ever see your suburb and rough distance. Your exact address appears once someone's order is paid for, and nowhere else."),
+        new Assurance("shield-check", "Food business rules",
+            "Whether you need to register depends on your council, your state and what you cook. Batch tracks where you are in that — it never claims you're allowed to sell."),
+        new Assurance("wallet", "Bank details",
+            "Only the last four digits of your account number are stored, for display. The full number is never written down anywhere."),
+        new Assurance("warning", "Allergens",
+            "Every listing carries ingredients and a declared allergen line, because a buyer can't inspect a home kitchen the way they'd read a label."),
+    };
+
+    protected override void OnInitialized() => CurrentUser.OnChange += OnUserChanged;
+    private async void OnUserChanged() => await InvokeAsync(StateHasChanged);
+    public void Dispose() => CurrentUser.OnChange -= OnUserChanged;
+}

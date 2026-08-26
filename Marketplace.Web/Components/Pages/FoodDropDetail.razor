@@ -151,10 +151,15 @@ else
                     </div>
                 </div>
 
-                <p class="text-muted small">
-                    Cancel before @_drop.OrderDeadline.ToLocalTime().ToString("h:mm tt") for a full refund. After orders close, your cook has started
-                    preparing your food, so cancellations aren't guaranteed a refund.
-                </p>
+                <div class="callout callout-info mb-3">
+                    <Icon Name="info" Size="18" />
+                    <div>
+                        <strong>Pickup only.</strong> You'll get @_drop.Seller?.Name's exact address and a 4-digit code
+                        once you've paid, then collect between
+                        @_drop.PickupWindowStart.ToLocalTime().ToString("h:mm tt")–@_drop.PickupWindowEnd.ToLocalTime().ToString("h:mm tt").
+                        Free cancellation until @_drop.OrderDeadline.ToLocalTime().ToString("h:mm tt") — after that they've shopped for your portion.
+                    </div>
+                </div>
 
                 <div class="btn-sticky-cta d-flex gap-2">
                     <button class="btn btn-outline-warning d-flex align-items-center justify-content-center" style="min-width:44px;" @onclick="ToggleFavorite" title="Save">

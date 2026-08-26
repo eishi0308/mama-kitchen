@@ -840,3 +840,181 @@ textarea:focus-visible,
 }
 .seller-reply-head { display: flex; align-items: center; gap: 0.4rem; margin-bottom: var(--space-1); }
 .seller-reply-head svg { color: var(--color-accent); }
+
+/* =========================================================================
+   JOURNEY STEPPER — where you are across the whole flow, both sides
+   ========================================================================= */
+.journey {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    gap: var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.journey::-webkit-scrollbar { display: none; }
+
+.journey-step {
+    flex: 1 1 0;
+    min-width: 150px;
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    position: relative;
+    padding-top: var(--space-4);
+}
+/* Connector, drawn above the row and clipped at the first step. */
+.journey-step::before {
+    content: "";
+    position: absolute;
+    top: 11px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--color-border);
+}
+.journey-step.done::before, .journey-step.current::before { background: var(--color-success); }
+.journey-step:first-child::before { left: 11px; }
+.journey-step:last-child::before { right: calc(100% - 22px); }
+
+.journey-marker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    border: 2px solid var(--color-border-strong);
+    color: var(--color-text-faint);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex: 0 0 auto;
+    z-index: 1;
+}
+.journey-step.done .journey-marker { background: var(--color-success); border-color: var(--color-success); color: #fff; }
+.journey-step.current .journey-marker {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+    box-shadow: 0 0 0 4px var(--color-primary-tint);
+}
+
+.journey-text { display: flex; flex-direction: column; padding-right: var(--space-4); }
+.journey-label { font-size: var(--fs-sm); font-weight: 600; color: var(--color-text-faint); line-height: 1.3; }
+.journey-hint { font-size: var(--fs-xs); color: var(--color-text-faint); margin-top: 2px; line-height: 1.35; }
+.journey-step.done .journey-label { color: var(--color-text-muted); }
+.journey-step.current .journey-label { color: var(--color-primary-dark); }
+.journey-compact .journey-step { min-width: 104px; padding-top: var(--space-3); }
+.journey-compact .journey-marker { width: 18px; height: 18px; font-size: 10px; }
+.journey-compact .journey-step::before { top: 9px; }
+.journey-compact .journey-step:first-child::before { left: 9px; }
+.journey-compact .journey-step:last-child::before { right: calc(100% - 18px); }
+
+/* =========================================================================
+   NEXT STEP — the single most important instruction on a page
+   ========================================================================= */
+.next-step {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+    background: var(--color-primary-tint);
+    border: 1px solid #F0CDB8;
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+.next-step-success { background: var(--color-success-tint); border-color: #BFE0CB; }
+.next-step-warn { background: var(--color-warning-tint); border-color: #EDD5A6; }
+
+.next-step-icon { flex: 0 0 auto; color: var(--color-primary-dark); margin-top: 1px; }
+.next-step-success .next-step-icon { color: var(--color-success); }
+.next-step-warn .next-step-icon { color: var(--color-warning); }
+
+.next-step-body { flex: 1 1 auto; min-width: 0; }
+.next-step-eyebrow {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-primary-dark);
+    opacity: 0.8;
+}
+.next-step-success .next-step-eyebrow { color: var(--color-success); }
+.next-step-warn .next-step-eyebrow { color: var(--color-warning); }
+.next-step-title { font-weight: 700; font-size: var(--fs-md); margin-top: 2px; line-height: 1.35; }
+.next-step-detail { font-size: var(--fs-sm); color: var(--color-text-muted); margin-top: var(--space-1); line-height: 1.5; }
+.next-step-action { flex: 0 0 auto; align-self: center; }
+@media (max-width: 575.98px) {
+    .next-step { flex-wrap: wrap; }
+    .next-step-action { width: 100%; }
+    .next-step-action .btn { width: 100%; }
+}
+
+/* =========================================================================
+   PERSPECTIVE SWITCH — the same order, from the other person's side
+   ========================================================================= */
+.perspective {
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    background: var(--color-surface-alt);
+    margin-top: var(--space-4);
+}
+.perspective-head {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+.perspective-head svg { color: var(--color-text-faint); }
+.perspective-body { font-size: var(--fs-sm); color: var(--color-text-muted); margin: var(--space-2) 0 var(--space-3); line-height: 1.5; }
+.perspective-avatar { font-size: 1.05rem; margin-right: 0.35rem; }
+.perspective-note { font-size: var(--fs-xs); color: var(--color-text-faint); margin-top: var(--space-2); }
+
+/* =========================================================================
+   HOW IT WORKS — the two journeys side by side
+   ========================================================================= */
+.hiw-lane { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-5); height: 100%; }
+.hiw-lane-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
+.hiw-lane-head svg { color: var(--color-text-faint); }
+.hiw-lane h2 { font-size: var(--fs-lg); margin: 0; }
+.hiw-lane-sub { color: var(--color-text-muted); font-size: var(--fs-sm); margin-bottom: var(--space-4); }
+
+.hiw-step { display: flex; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+.hiw-step:last-child { border-bottom: none; }
+.hiw-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--color-surface-alt); color: var(--color-text-muted);
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--fs-xs); font-weight: 700; flex: 0 0 auto;
+}
+.hiw-step-title { font-weight: 700; font-size: var(--fs-sm); }
+.hiw-step-body { color: var(--color-text-muted); font-size: var(--fs-sm); line-height: 1.5; margin-top: 2px; }
+
+.money-leg { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+.money-leg:last-child { border-bottom: none; }
+.money-leg-tag {
+    flex: 0 0 auto; width: 58px; text-align: center;
+    font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 0.25rem 0; border-radius: var(--radius-full);
+}
+.money-in { background: var(--color-success-tint); color: var(--color-success); }
+.money-back { background: var(--color-warning-tint); color: var(--color-warning); }
+.money-out { background: var(--color-primary-tint); color: var(--color-primary-dark); }
+
+/* "How it works" strip on Discover */
+.hiw-strip { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+.hiw-chip { display: flex; gap: var(--space-2); align-items: flex-start; flex: 1 1 200px; }
+.hiw-chip-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--color-primary); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex: 0 0 auto;
+}
+.hiw-chip-text { font-size: var(--fs-sm); line-height: 1.4; }
+.hiw-chip-text strong { display: block; }
+.hiw-chip-text span { color: var(--color-text-muted); font-size: var(--fs-xs); }

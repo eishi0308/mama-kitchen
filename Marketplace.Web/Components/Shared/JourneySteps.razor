@@ -1,0 +1,61 @@
+@* Where you are in the whole journey, on both sides of the marketplace.
+   The order status track answers "where is my food"; this answers the bigger
+   question "where am I in this process, and what's still to come". *@
+
+<ol class="journey @(Compact ? "journey-compact" : "")" aria-label="@Label">
+    @for (var i = 0; i < Steps.Length; i++)
+    {
+        var state = i < Current ? "done" : i == Current ? "current" : "todo";
+        <li class="journey-step @state">
+            <span class="journey-marker">
+                @if (i < Current)
+                {
+                    <Icon Name="check" Size="12" />
+                }
+                else
+                {
+                    <text>@(i + 1)</text>
+                }
+            </span>
+            <span class="journey-text">
+                <span class="journey-label">@Steps[i].Label</span>
+                @if (!Compact && !string.IsNullOrWhiteSpace(Steps[i].Hint))
+                {
+                    <span class="journey-hint">@Steps[i].Hint</span>
+                }
+            </span>
+        </li>
+    }
+</ol>
+
+@code {
+    public record Step(string Label, string? Hint = null);
+
+    [Parameter, EditorRequired] public Step[] Steps { get; set; } = Array.Empty<Step>();
+
+    /// Zero-based index of the step the user is on. Pass Steps.Length to show
+    /// the whole journey as finished.
+    [Parameter] public int Current { get; set; }
+
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public string Label { get; set; } = "Progress";
+
+    // The two journeys, defined once so every page that shows them agrees.
+    public static readonly Step[] Buyer =
+    {
+        new("Find food", "Search what's cooking near you tonight"),
+        new("Reserve & pay", "Your portion is held and paid for"),
+        new("Cook prepares", "You watch it go from cooking to ready"),
+        new("Collect", "Show your 4-digit code at pickup"),
+        new("Rate it", "Your review sets the cook's rating"),
+    };
+
+    public static readonly Step[] Cook =
+    {
+        new("Post a batch", "Dish, price, portions, pickup window"),
+        new("Orders come in", "Neighbours reserve before you shop"),
+        new("Cook it", "Only what's actually been reserved"),
+        new("Hand over", "Confirm each pickup with their code"),
+        new("Get paid", "Cash out your balance to your bank"),
+    };
+}

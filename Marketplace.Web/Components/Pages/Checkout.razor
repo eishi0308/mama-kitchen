@@ -33,6 +33,9 @@ else
         <a class="back-link" href="/food/@_drop.Id"><Icon Name="arrow-left" Size="15" /> Back to @_drop.Title</a>
         <h1 style="font-size:var(--fs-xl); margin-bottom:var(--space-4);">Your order</h1>
 
+        <JourneySteps Steps="JourneySteps.Buyer" Current="1" Compact="true" Label="Your journey" />
+        <div class="divider"></div>
+
         <div class="d-flex align-items-center gap-3 mb-3">
             <span style="font-size:2.2rem;">@_drop.ImageEmoji</span>
             <div class="flex-grow-1">

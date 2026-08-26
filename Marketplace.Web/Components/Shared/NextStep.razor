@@ -1,0 +1,28 @@
+@* The single most important thing on a page: what do I do now? Every state in
+   both journeys should be able to answer that in one sentence. *@
+
+<div class="next-step @(Tone is not null ? $"next-step-{Tone}" : "")">
+    <div class="next-step-icon"><Icon Name="@IconName" Size="20" /></div>
+    <div class="next-step-body">
+        <div class="next-step-eyebrow">@Eyebrow</div>
+        <div class="next-step-title">@Title</div>
+        @if (ChildContent is not null)
+        {
+            <div class="next-step-detail">@ChildContent</div>
+        }
+    </div>
+    @if (ActionContent is not null)
+    {
+        <div class="next-step-action">@ActionContent</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string Eyebrow { get; set; } = "Next step";
+    [Parameter] public string IconName { get; set; } = "arrow-right";
+    /// null (default), "success", "warn" — matches the callout tones.
+    [Parameter] public string? Tone { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? ActionContent { get; set; }
+}

@@ -25,6 +25,20 @@ hard-coded, so they stay correct as you use the app.
 Switch "who you are" from the dropdown in the sidebar to move between people. Cooks get an
 **Eat / Cook** switch; the sidebar follows whichever page you're on.
 
+## Seeing the flow
+
+Open **`/how-it-works`** (or "How it works" in the sidebar) for the whole thing on one
+page: both journeys step by step, where the money goes, and what happens to your address,
+your bank details and allergens.
+
+Inside the app, every state answers *"what do I do now?"* with one instruction — the
+buyer's order page and the cook's batch page both lead with it.
+
+And on any order page there's a **"See the other side"** card that switches you to the
+other person and lands you on the matching page. That's the fastest way to understand a
+two-sided marketplace: reserve a meal as Priya, jump to Maya to cook it and take the
+pickup code, then jump back and watch the same order ask you to rate it.
+
 ## The two journeys
 
 **Buyer** — Discover (search, cuisine and dietary filters, tonight/tomorrow buckets) →
@@ -87,6 +101,7 @@ takes it, derives the last four digits, and discards the rest.
 | `/cooks/{id}` | Cook's public page | `/post?from={id}` | Repeat a past batch |
 | `/favorites` | Saved | `/kitchen/earnings` | Earnings + cash out |
 | `/messages` | Shared by both sides | `/kitchen/reviews` | Reviews + replies |
+| `/how-it-works` | Both journeys on one page | | |
 | | | `/kitchen/profile` | Profile, payout account, pickup points |
 
 ## Rules the app actually enforces

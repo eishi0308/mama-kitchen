@@ -62,6 +62,19 @@ else
         </div>
     </div>
 
+    @* What to do right now, before any numbers. A cook opening this mid-service
+       needs an instruction, not a dashboard. *@
+    @if (CookNextStep(_board, closed, windowOver) is CookAction action)
+    {
+        <NextStep Title="@action.Title" Eyebrow="@action.Eyebrow" IconName="@action.Icon" Tone="@action.Tone">
+            @action.Detail
+        </NextStep>
+    }
+
+    <div class="surface-card p-4 mb-4">
+        <JourneySteps Steps="JourneySteps.Cook" Current="@CookJourneyStep(_board, windowOver)" Label="Batch progress" />
+    </div>
+
     <div class="stat-grid mb-4">
         <StatTile Label="Portions to cook" Value="@_board.PortionsSold.ToString()" IconName="flame"
                   Hint="@($"of {drop.PortionsTotal} offered · {drop.PortionsRemaining} still available")" />
@@ -240,6 +253,24 @@ else
                     {
                         <div class="text-danger small" style="flex-basis:100%;">@err</div>
                     }
+
+                    @if (actionable && _showBuyerViewFor == o.Id)
+                    {
+                        <div style="flex-basis:100%;">
+                            <PerspectiveSwitch TargetUserId="o.BuyerId"
+                                               TargetName="@(o.Buyer?.Name ?? "the buyer")"
+                                               TargetAvatar="@(o.Buyer?.Avatar ?? "🙂")"
+                                               TargetUrl="@($"/orders/{o.Id}")"
+                                               Explanation="@($"See exactly what {o.Buyer?.Name} is looking at — their pickup code, your address, and where they think this order is up to.")" />
+                        </div>
+                    }
+                    else if (actionable)
+                    {
+                        <button class="btn btn-sm btn-link p-0" style="flex-basis:100%; text-align:left;"
+                                @onclick="() => _showBuyerViewFor = o.Id">
+                            What does @o.Buyer?.Name see?
+                        </button>
+                    }
                 </div>
             }
         </div>
@@ -255,6 +286,7 @@ else
     private bool _showCancel;
     private string _cancelReason = "";
     private int? _refundingOrderId;
+    private int? _showBuyerViewFor;
     private string _refundReason = "";
     private readonly Dictionary<int, string> _codeInputs = new();
     private readonly Dictionary<int, string> _errors = new();
@@ -301,6 +333,61 @@ else
             }
         }
         catch (ObjectDisposedException) { }
+    }
+
+    private record CookAction(string Title, string Eyebrow, string Icon, string? Tone, string Detail);
+
+    private static int CookJourneyStep(DropOrderBoard b, bool windowOver) => b.Drop.Status switch
+    {
+        FoodDropStatus.Draft => 0,
+        FoodDropStatus.Published or FoodDropStatus.OrderingClosed => 1,
+        FoodDropStatus.Preparing => 2,
+        FoodDropStatus.Ready => 3,
+        FoodDropStatus.Completed => 4,
+        _ => 1,
+    };
+
+    /// The cook's single next instruction, derived from the batch stage and
+    /// what's actually still outstanding.
+    private static CookAction? CookNextStep(DropOrderBoard b, bool closed, bool windowOver)
+    {
+        var d = b.Drop;
+        var window = $"{d.PickupWindowStart.ToLocalTime():h:mm tt}–{d.PickupWindowEnd.ToLocalTime():h:mm tt}";
+
+        if (d.Status == FoodDropStatus.Cancelled)
+            return new CookAction("This batch is cancelled", "Finished", "x-circle", "warn",
+                "Everyone who had ordered was refunded in full. Nothing else is needed.");
+
+        if (d.Status == FoodDropStatus.Completed)
+            return new CookAction("Batch done", "Finished", "check-circle", "success",
+                $"{b.CollectedOrders} handed over. Your earnings are in your balance — cash out from Earnings whenever you like.");
+
+        if (b.PortionsSold == 0 && !closed)
+            return new CookAction("Waiting for the first order", "Right now", "clock", null,
+                $"Orders close {RelativeTime(d.OrderDeadline)}. Share your cook page to bring people in — you only cook what actually sells.");
+
+        if (d.Status is FoodDropStatus.Published or FoodDropStatus.OrderingClosed)
+            return closed
+                ? new CookAction($"Cook {b.PortionsSold} {(b.PortionsSold == 1 ? "portion" : "portions")}", "Do this now", "flame", null,
+                    $"Orders are closed, so this is exactly what you need to make. Tap Start cooking below and every buyer sees their order move to \"Cooking\".")
+                : new CookAction($"{b.PortionsSold} {(b.PortionsSold == 1 ? "portion" : "portions")} reserved so far", "Next step", "package", null,
+                    $"Orders close {RelativeTime(d.OrderDeadline)}. Shop after that and you'll buy for exactly what sold. Then tap Start cooking.");
+
+        if (d.Status == FoodDropStatus.Preparing)
+            return new CookAction("Tap Ready when the food is done", "Next step", "check-circle", null,
+                $"Pickup is {window}. Marking it ready tells all {b.AwaitingPickup} {(b.AwaitingPickup == 1 ? "buyer" : "buyers")} at once that they can come and get it.");
+
+        if (d.Status == FoodDropStatus.Ready && b.AwaitingPickup > 0)
+            return new CookAction($"Hand over {b.AwaitingPickup} {(b.AwaitingPickup == 1 ? "order" : "orders")}", "Do this now", "ticket", "success",
+                windowOver
+                    ? "The pickup window has closed. Anyone who didn't turn up can be marked as a no-show below — you keep that money, since the food was made."
+                    : $"As each person arrives, type their 4-digit code into their row below. That closes their order and moves the money into your balance.");
+
+        if (d.Status == FoodDropStatus.Ready)
+            return new CookAction("Everyone has collected", "Almost done", "check-circle", "success",
+                "Nothing left to hand over. Mark the batch done to close it off.");
+
+        return null;
     }
 
     private static decimal NetOf(decimal gross) => Marketplace.Web.Services.SellerService.NetOf(gross);
