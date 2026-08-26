@@ -167,6 +167,13 @@ else
 
     @* ---- Handover queue ---- *@
     <h2 class="section-heading">Orders <span class="text-muted" style="font-size:var(--fs-base);">(@_board.Orders.Count)</span></h2>
+    @if (_board.AwaitingPickup > 0)
+    {
+        <p class="text-muted mb-3" style="font-size:var(--fs-sm);">
+            <strong>This is where you confirm a pickup.</strong> When someone arrives, ask for their 4-digit code,
+            type it into their row and press Confirm pickup. That closes their order and moves the money into your balance.
+        </p>
+    }
 
     @if (_board.Orders.Count == 0)
     {

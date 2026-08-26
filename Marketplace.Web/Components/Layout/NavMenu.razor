@@ -258,7 +258,10 @@
             "post" or "sell/start" => AppMode.Cook,
             "" or "favorites" => AppMode.Eat,
             _ when path.StartsWith("orders") => AppMode.Eat,
-            _ when path.StartsWith("food") || path.StartsWith("checkout") || path.StartsWith("cooks") => AppMode.Eat,
+            _ when path.StartsWith("checkout") => AppMode.Eat,
+            // /food and /cooks are public pages that both sides use — a cook
+            // previewing their own listing was being forced into buyer nav.
+            // Like /messages, they leave the current mode alone.
             _ => CurrentUser.Mode,
         };
 

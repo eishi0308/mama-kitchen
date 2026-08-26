@@ -2,6 +2,7 @@
 @inject IFoodDropService FoodDropService
 @inject IFavoriteService FavoriteService
 @inject IMessageService MessageService
+@inject IOrderService OrderService
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Nav
 @implements IDisposable
@@ -19,6 +20,13 @@ else
 {
     var closed = !_drop.IsOrderable;
     var soldOut = _drop.PortionsRemaining == 0;
+    // A batch whose pickup window has passed is FINISHED, not "sold out".
+    // "Sold out" reads as "you just missed out, try again" and sent people
+    // looking for a Reserve button that will never come back.
+    var finished = _drop.Status is FoodDropStatus.Completed
+                   || _drop.PickupWindowEnd < DateTime.UtcNow
+                   || _drop.Status == FoodDropStatus.Cancelled;
+    var cancelled = _drop.Status == FoodDropStatus.Cancelled;
 
     <div class="row g-4 fade-in">
         <div class="col-md-6">
@@ -36,7 +44,7 @@ else
             <div class="surface-card p-3 mt-3">
                 <h5 style="font-size:var(--fs-base); font-weight:600;">Pickup details</h5>
                 <div class="d-flex justify-content-between py-1">
-                    <span class="text-muted">Orders close</span>
+                    <span class="text-muted">@(_drop.OrderDeadline < DateTime.UtcNow ? "Orders closed" : "Orders close")</span>
                     <strong>@_drop.OrderDeadline.ToLocalTime().ToString("ddd d MMM, h:mm tt")</strong>
                 </div>
                 <div class="d-flex justify-content-between py-1">
@@ -47,13 +55,35 @@ else
                     <span class="text-muted">Location</span>
                     <strong>@_drop.PickupLocation?.Suburb · @DistanceLabel()</strong>
                 </div>
-                <p class="text-muted small mt-2 mb-0">Exact pickup address and instructions are revealed once your order is confirmed and paid.</p>
+                @if (finished)
+                {
+                    <p class="text-muted small mt-2 mb-0">
+                        This batch finished @Ago(_drop.PickupWindowEnd). It's kept here so the cook's history and
+                        reviews still make sense.
+                    </p>
+                }
+                else
+                {
+                    <p class="text-muted small mt-2 mb-0">Exact pickup address and instructions are revealed once your order is confirmed and paid.</p>
+                }
             </div>
         </div>
 
         <div class="col-md-6">
-            <div class="d-flex gap-2 mb-2">
-                @if (soldOut)
+            <div class="d-flex gap-2 mb-2 flex-wrap">
+                @if (cancelled)
+                {
+                    <span class="badge-pill badge-sold-out">Cancelled</span>
+                }
+                else if (_drop.Status == FoodDropStatus.Completed)
+                {
+                    <span class="badge-pill badge-sold-out">Batch finished</span>
+                }
+                else if (finished)
+                {
+                    <span class="badge-pill badge-sold-out">Pickup window closed</span>
+                }
+                else if (soldOut)
                 {
                     <span class="badge-pill badge-sold-out">Sold out</span>
                 }
@@ -133,11 +163,71 @@ else
             else if (_drop.SellerId == CurrentUser.CurrentUser.Id)
             {
                 <div class="surface-card p-3">
-                    <p class="mb-2"><em>This is your own food drop — this is what buyers see.</em></p>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a class="btn btn-primary" href="/kitchen/drops/@_drop.Id"><Icon Name="list" Size="15" /> Manage this batch</a>
-                        <a class="btn btn-outline-secondary" href="/kitchen/drops/@_drop.Id/edit"><Icon Name="pencil" Size="15" /> Edit</a>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <Icon Name="chef-hat" Size="16" Class="text-muted" />
+                        <strong style="font-size:var(--fs-sm);">Your batch — this is the buyer's view of it</strong>
                     </div>
+
+                    @if (_board is null)
+                    {
+                        <div class="skeleton" style="height:44px;"></div>
+                    }
+                    else if (_board.AwaitingPickup > 0)
+                    {
+                        @* The answer to "where do I confirm an order?" — say it
+                           here, on the page they're actually looking at. *@
+                        <p class="text-muted small mb-3">
+                            @if (_drop.PickupWindowEnd < DateTime.UtcNow)
+                            {
+                                <text>
+                                    <strong>@_board.AwaitingPickup @(_board.AwaitingPickup == 1 ? "person" : "people")</strong>
+                                    didn't collect before the window closed. You can still confirm their code if they turn up
+                                    late, or mark them as a no-show — either way it's on the manage screen.
+                                </text>
+                            }
+                            else
+                            {
+                                <text>
+                                    <strong>@_board.AwaitingPickup @(_board.AwaitingPickup == 1 ? "person is" : "people are")</strong>
+                                    waiting to collect. You confirm each one by typing their 4-digit pickup code into their row —
+                                    that's on the manage screen.
+                                </text>
+                            }
+                        </p>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a class="btn btn-primary" href="/kitchen/drops/@_drop.Id">
+                                <Icon Name="ticket" Size="15" /> @(_drop.PickupWindowEnd < DateTime.UtcNow ? "Resolve" : "Confirm pickups") (@_board.AwaitingPickup)
+                            </a>
+                            @if (_drop.Status is not (FoodDropStatus.Cancelled or FoodDropStatus.Completed))
+                            {
+                                <a class="btn btn-outline-secondary" href="/kitchen/drops/@_drop.Id/edit"><Icon Name="pencil" Size="15" /> Edit</a>
+                            }
+                        </div>
+                    }
+                    else if (finished)
+                    {
+                        <p class="text-muted small mb-3">
+                            This batch is done — @_board.CollectedOrders collected,
+                            <span class="money">$@NetOf(_board.GrossRevenue).ToString("0.00")</span> earned after fees.
+                            Nothing left to confirm.
+                        </p>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a class="btn btn-primary" href="/post?from=@_drop.Id"><Icon Name="package" Size="15" /> Cook this again</a>
+                            <a class="btn btn-outline-secondary" href="/kitchen/drops/@_drop.Id"><Icon Name="list" Size="15" /> See the orders</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-3">
+                            @(_board.PortionsSold == 0
+                                ? "No orders yet. When someone reserves, you'll confirm their pickup with a 4-digit code on the manage screen."
+                                : $"{_board.PortionsSold} portions reserved. When people arrive you'll confirm each pickup with their 4-digit code on the manage screen.")
+                        </p>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a class="btn btn-primary" href="/kitchen/drops/@_drop.Id"><Icon Name="list" Size="15" /> Manage this batch</a>
+                            <a class="btn btn-outline-secondary" href="/kitchen/drops/@_drop.Id/edit"><Icon Name="pencil" Size="15" /> Edit</a>
+                        </div>
+                    }
                 </div>
             }
             else
@@ -161,12 +251,37 @@ else
                     </div>
                 </div>
 
+                @if (finished)
+                {
+                    <div class="callout callout-info mb-3">
+                        <Icon Name="clock" Size="18" />
+                        <div>
+                            <strong>@(_drop.Status == FoodDropStatus.Completed || cancelled ? "This batch has finished." : "Pickup for this batch has closed.")</strong>
+                            @(cancelled
+                                ? $" {_drop.Seller?.Name} cancelled it, and anyone who had ordered was refunded."
+                                : $" It was collected {Ago(_drop.PickupWindowEnd)}.")
+                            @if (_moreFromCook.Count > 0)
+                            {
+                                <text> @_drop.Seller?.Name has @_moreFromCook.Count more @(_moreFromCook.Count == 1 ? "batch" : "batches") coming up — see below.</text>
+                            }
+                            else
+                            {
+                                <text> Follow their kitchen to catch the next one.</text>
+                            }
+                        </div>
+                    </div>
+                }
+
                 <div class="btn-sticky-cta d-flex gap-2">
                     <button class="btn btn-outline-warning d-flex align-items-center justify-content-center" style="min-width:44px;" @onclick="ToggleFavorite" title="Save">
                         <Icon Name="heart" Size="18" Filled="_isFavorite" />
                     </button>
-                    <button class="btn btn-primary flex-grow-1" style="font-size:var(--fs-md);" disabled="@(closed || soldOut)" @onclick="GoToCheckout">
-                        @if (soldOut)
+                    <button class="btn btn-primary flex-grow-1" style="font-size:var(--fs-md);" disabled="@(closed || soldOut || finished)" @onclick="GoToCheckout">
+                        @if (finished)
+                        {
+                            <text>This batch has finished</text>
+                        }
+                        else if (soldOut)
                         {
                             <text>Sold out</text>
                         }
@@ -255,6 +370,7 @@ else
     private int _quantity = 1;
     private List<Message> _thread = new();
     private List<FoodDrop> _moreFromCook = new();
+    private DropOrderBoard? _board;
     private string _draft = "";
 
     protected override async Task OnInitializedAsync()
@@ -273,6 +389,20 @@ else
 
         _moreFromCook = await FoodDropService.GetMoreFromCookAsync(_drop.SellerId, _drop.Id);
 
+        // Only the owner needs the order board, and only they're allowed it.
+        var isOwner = CurrentUser.CurrentUser is not null && CurrentUser.CurrentUser.Id == _drop.SellerId;
+        _board = isOwner
+            ? await OrderService.GetDropBoardAsync(_drop.Id, CurrentUser.CurrentUser!.Id)
+            : null;
+
+        // /food/{id} is a shared page, so the nav can't tell from the route
+        // alone whose side you're on. Looking at your OWN listing is a cook
+        // activity — otherwise you manage your batch with buyer nav beside it.
+        if (isOwner && CurrentUser.Mode != AppMode.Cook)
+        {
+            await CurrentUser.SetModeAsync(AppMode.Cook);
+        }
+
         if (CurrentUser.CurrentUser is not null && CurrentUser.CurrentUser.Id != _drop.SellerId)
         {
             _isFavorite = await FavoriteService.IsFavoriteAsync(CurrentUser.CurrentUser.Id, Id);
@@ -285,6 +415,20 @@ else
         if (_drop is null) return;
         var next = _quantity + delta;
         _quantity = Math.Clamp(next, 1, Math.Max(1, _drop.PortionsRemaining));
+    }
+
+    private static decimal NetOf(decimal gross) => Marketplace.Web.Services.SellerService.NetOf(gross);
+
+    /// "3 weeks ago" — a finished batch needs to read as history, not as
+    /// something you just missed by a minute.
+    private static string Ago(DateTime utc)
+    {
+        var span = DateTime.UtcNow - utc;
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes} minutes ago";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours} hours ago";
+        if (span.TotalDays < 14) return $"{(int)span.TotalDays} days ago";
+        if (span.TotalDays < 60) return $"{(int)(span.TotalDays / 7)} weeks ago";
+        return utc.ToLocalTime().ToString("d MMM yyyy");
     }
 
     private string DistanceLabel()
