@@ -22,16 +22,26 @@ public class FoodDropService : IFoodDropService
 
     public async Task<List<FoodDrop>> SearchAsync(string? query, int? categoryId, decimal? maxPrice, DietaryLabel? dietary)
     {
-        // Draft and Cancelled drops are never shown publicly; everything else
-        // (including sold-out / orders-closed) stays visible with its status
-        // badge — a beautiful listing that's sold out still builds trust and
-        // converts to "notify me next time" (brief Section 24).
+        // Discover is a market of food you can still get, so a batch is only
+        // listed while its pickup window is ahead of you.
+        //
+        // Sold-out and orders-closed batches DO stay — they're still happening,
+        // they build trust, and they convert to "catch the next one". But a
+        // batch whose window has already passed is history, not inventory:
+        // leaving those in meant 37 of 42 listings were finished weeks ago and
+        // only 3 could actually be bought. Cooks' past batches still show on
+        // their profile page, which is where history belongs.
+        var now = DateTime.UtcNow;
+
         var drops = _db.FoodDrops
             .AsNoTracking()
             .Include(f => f.Category)
             .Include(f => f.Seller).ThenInclude(s => s!.SellerProfile)
             .Include(f => f.PickupLocation)
-            .Where(f => f.Status != FoodDropStatus.Draft && f.Status != FoodDropStatus.Cancelled)
+            .Where(f => f.Status != FoodDropStatus.Draft
+                        && f.Status != FoodDropStatus.Cancelled
+                        && f.Status != FoodDropStatus.Completed
+                        && f.PickupWindowEnd >= now)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query))

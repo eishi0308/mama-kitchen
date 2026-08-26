@@ -173,6 +173,54 @@ public static class DbInitializer
             Drop("Mixed Mezze Platter (Vegetarian)", "Hummus, baba ghanoush, tabbouleh, falafel, warm pita.", "🥙", 15,
                 10, 10, TimeSpan.FromHours(90), TimeSpan.FromHours(92), TimeSpan.FromHours(2.5), lebanese, amirProfile, amirLoc,
                 "Chickpeas, tahini, eggplant, parsley, bulgur, pita", "Contains sesame, gluten", DietaryLabel.Vegetarian),
+
+            // --- More live inventory ---
+            // Discover only lists batches whose pickup window is still ahead
+            // (see FoodDropService.SearchAsync), so the market needs enough of
+            // them to actually look like a market — and enough spare capacity
+            // that ordering a few doesn't empty the page.
+
+            // Tonight
+            Drop("Japchae (Glass Noodles)", "Sweet potato noodles stir-fried with beef, spinach, carrot and sesame.", "🍜", 13,
+                14, 11, TimeSpan.FromHours(3.5), TimeSpan.FromHours(4.5), TimeSpan.FromHours(1.5), korean, soojinProfile, soojinLoc,
+                "Sweet potato noodles, beef, spinach, carrot, sesame oil, soy", "Contains soy, sesame"),
+            Drop("Chicken Karaage Bento", "Twice-fried marinated chicken, rice, cabbage salad, Japanese mayo.", "🍱", 13,
+                12, 9, TimeSpan.FromHours(2.5), TimeSpan.FromHours(3.5), TimeSpan.FromHours(1.5), japanese, yukiProfile, yukiLoc,
+                "Chicken thigh, potato starch, soy, ginger, rice, cabbage", "Contains soy, gluten, egg"),
+            Drop("Cơm Gà (Chicken Rice)", "Poached chicken with turmeric rice, cucumber and ginger dipping sauce.", "🍗", 12,
+                16, 13, TimeSpan.FromHours(4), TimeSpan.FromHours(5), TimeSpan.FromHours(2), vietnamese, minhProfile, minhLoc,
+                "Chicken, jasmine rice, turmeric, ginger, cucumber", "Contains fish sauce", DietaryLabel.DairyFree),
+            Drop("Tom Yum Goong + Rice", "Hot and sour prawn soup with lemongrass, galangal and lime, jasmine rice.", "🍲", 15,
+                10, 4, TimeSpan.FromHours(3), TimeSpan.FromHours(4), TimeSpan.FromHours(1.5), thai, mayaProfile, mayaLoc,
+                "Prawns, lemongrass, galangal, kaffir lime, chilli, jasmine rice", "Contains shellfish, fish sauce", DietaryLabel.GlutenFree | DietaryLabel.DairyFree),
+
+            // Tomorrow
+            Drop("Falafel Wrap Pack", "Four falafel wraps with pickles, tahini and salad — feeds two.", "🥙", 16,
+                12, 12, TimeSpan.FromHours(27), TimeSpan.FromHours(28), TimeSpan.FromHours(2), lebanese, amirProfile, amirLoc,
+                "Chickpeas, parsley, tahini, pickles, flatbread", "Contains sesame, gluten", DietaryLabel.Vegetarian | DietaryLabel.Vegan),
+            Drop("Palak Paneer", "Spinach and paneer curry, cumin rice, side of pickle.", "🥘", 13,
+                14, 14, TimeSpan.FromHours(28), TimeSpan.FromHours(29.5), TimeSpan.FromHours(2), indian, raviProfile, raviLoc,
+                "Spinach, paneer, cream, cumin, basmati rice", "Contains dairy", DietaryLabel.Vegetarian | DietaryLabel.GlutenFree),
+            Drop("Tteokbokki + Fried Mandu", "Chewy rice cakes in gochujang sauce with crisp pork dumplings.", "🌶️", 12,
+                15, 15, TimeSpan.FromHours(30), TimeSpan.FromHours(31), TimeSpan.FromHours(1.5), korean, soojinProfile, soojinLoc,
+                "Rice cakes, gochujang, fish cake, pork dumplings, spring onion", "Contains gluten, soy, fish"),
+            Drop("Gỏi Cuốn (Rice Paper Rolls)", "Six fresh rolls with prawn, pork, herbs and peanut dipping sauce.", "🥗", 11,
+                18, 18, TimeSpan.FromHours(26), TimeSpan.FromHours(27), TimeSpan.FromHours(2), vietnamese, minhProfile, minhLoc,
+                "Rice paper, prawn, pork, vermicelli, herbs, peanut sauce", "Contains shellfish, peanuts", DietaryLabel.GlutenFree | DietaryLabel.DairyFree),
+
+            // This weekend
+            Drop("Khao Soi (Northern Curry Noodles)", "Chiang Mai curry noodle soup, crispy noodles, pickled mustard greens.", "🍜", 15,
+                14, 14, TimeSpan.FromHours(74), TimeSpan.FromHours(76), TimeSpan.FromHours(2), thai, mayaProfile, mayaLoc,
+                "Egg noodles, coconut milk, curry paste, chicken, pickled greens", "Contains gluten, egg"),
+            Drop("Chirashi Bowl", "Sashimi-grade fish over seasoned sushi rice with pickles and shiso.", "🍣", 18,
+                10, 10, TimeSpan.FromHours(76), TimeSpan.FromHours(78), TimeSpan.FromHours(1.5), japanese, yukiProfile, yukiLoc,
+                "Salmon, tuna, sushi rice, rice vinegar, pickles, shiso", "Contains fish, soy", DietaryLabel.DairyFree),
+            Drop("Hyderabadi Chicken Biryani", "Layered basmati and marinated chicken, sealed and slow-cooked. Raita included.", "🍛", 16,
+                20, 20, TimeSpan.FromHours(79), TimeSpan.FromHours(81), TimeSpan.FromHours(2.5), indian, raviProfile, raviLoc,
+                "Chicken, basmati rice, yoghurt, saffron, fried onion, raita", "Contains dairy"),
+            Drop("Kibbeh & Vine Leaves Platter", "Baked kibbeh, stuffed vine leaves, labneh and flatbread.", "🍽️", 15,
+                12, 12, TimeSpan.FromHours(92), TimeSpan.FromHours(94), TimeSpan.FromHours(2.5), lebanese, amirProfile, amirLoc,
+                "Bulgur, lamb mince, pine nuts, vine leaves, labneh, flatbread", "Contains gluten, dairy, nuts"),
         };
 
         db.FoodDrops.AddRange(drops);
