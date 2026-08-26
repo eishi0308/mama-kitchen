@@ -843,45 +843,48 @@ textarea:focus-visible,
 
 /* =========================================================================
    JOURNEY STEPPER — where you are across the whole flow, both sides
+
+   Marker sits centred ABOVE its label, same structure as the order status
+   track. The previous version placed the marker absolutely at the step's
+   top-left with only 16px of clearance for a 22px marker, so every number
+   badge landed on top of its own label; and a 150px min-width meant five
+   steps needed 750px inside a 520px checkout card, clipping "Rate it".
    ========================================================================= */
 .journey {
     display: flex;
     list-style: none;
     padding: 0;
     margin: 0;
-    gap: var(--space-2);
-    overflow-x: auto;
-    scrollbar-width: none;
+    width: 100%;
 }
-.journey::-webkit-scrollbar { display: none; }
 
 .journey-step {
     flex: 1 1 0;
-    min-width: 150px;
-    display: flex;
-    gap: var(--space-2);
-    align-items: flex-start;
+    min-width: 0;              /* let steps shrink to fit narrow cards */
     position: relative;
-    padding-top: var(--space-4);
+    text-align: center;
+    padding: 30px 2px 0;       /* clears the 22px marker with room to spare */
 }
-/* Connector, drawn above the row and clipped at the first step. */
+
+/* Connector, drawn behind the markers and clipped at the first step. */
 .journey-step::before {
     content: "";
     position: absolute;
-    top: 11px;
-    left: 0;
-    right: 0;
+    top: 10px;
+    left: -50%;
+    width: 100%;
     height: 2px;
     background: var(--color-border);
 }
-.journey-step.done::before, .journey-step.current::before { background: var(--color-success); }
-.journey-step:first-child::before { left: 11px; }
-.journey-step:last-child::before { right: calc(100% - 22px); }
+.journey-step:first-child::before { display: none; }
+.journey-step.done::before,
+.journey-step.current::before { background: var(--color-success); }
 
 .journey-marker {
     position: absolute;
     top: 0;
-    left: 0;
+    left: 50%;
+    transform: translateX(-50%);
     width: 22px; height: 22px;
     border-radius: 50%;
     background: var(--color-surface);
@@ -890,8 +893,7 @@ textarea:focus-visible,
     display: flex; align-items: center; justify-content: center;
     font-size: 11px;
     font-weight: 700;
-    flex: 0 0 auto;
-    z-index: 1;
+    font-variant-numeric: tabular-nums;
 }
 .journey-step.done .journey-marker { background: var(--color-success); border-color: var(--color-success); color: #fff; }
 .journey-step.current .journey-marker {
@@ -901,16 +903,37 @@ textarea:focus-visible,
     box-shadow: 0 0 0 4px var(--color-primary-tint);
 }
 
-.journey-text { display: flex; flex-direction: column; padding-right: var(--space-4); }
-.journey-label { font-size: var(--fs-sm); font-weight: 600; color: var(--color-text-faint); line-height: 1.3; }
-.journey-hint { font-size: var(--fs-xs); color: var(--color-text-faint); margin-top: 2px; line-height: 1.35; }
+.journey-text { display: block; }
+.journey-label {
+    display: block;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--color-text-faint);
+    line-height: 1.3;
+    overflow-wrap: anywhere;   /* long labels wrap instead of overflowing */
+}
+.journey-hint {
+    display: block;
+    font-size: var(--fs-xs);
+    color: var(--color-text-faint);
+    margin-top: 3px;
+    line-height: 1.35;
+}
 .journey-step.done .journey-label { color: var(--color-text-muted); }
-.journey-step.current .journey-label { color: var(--color-primary-dark); }
-.journey-compact .journey-step { min-width: 104px; padding-top: var(--space-3); }
-.journey-compact .journey-marker { width: 18px; height: 18px; font-size: 10px; }
-.journey-compact .journey-step::before { top: 9px; }
-.journey-compact .journey-step:first-child::before { left: 9px; }
-.journey-compact .journey-step:last-child::before { right: calc(100% - 18px); }
+.journey-step.current .journey-label { color: var(--color-primary-dark); font-weight: 700; }
+
+/* Roomier variant, used where there's full page width for the hint text. */
+.journey:not(.journey-compact) .journey-label { font-size: var(--fs-sm); }
+
+/* On a phone the hints go first, and the steps shrink to share the width
+   rather than overflowing — a 76px floor pushed the last label off-screen
+   at 390px. min-width:0 on the base rule lets flex do the work. */
+@media (max-width: 575.98px) {
+    .journey-hint { display: none; }
+    .journey-step { padding: 27px 1px 0; }
+    .journey-label { font-size: 10px; line-height: 1.25; }
+    .journey:not(.journey-compact) .journey-label { font-size: 10px; }
+}
 
 /* =========================================================================
    NEXT STEP — the single most important instruction on a page
