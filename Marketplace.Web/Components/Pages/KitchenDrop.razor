@@ -1,4 +1,5 @@
 @page "/kitchen/drops/{Id:int}"
+@attribute [Authorize]
 @inject IOrderService OrderService
 @inject IFoodDropService FoodDropService
 @inject CurrentUserService CurrentUser
@@ -9,11 +10,7 @@
 
 <a class="back-link" href="/kitchen"><Icon Name="arrow-left" Size="15" /> Your kitchen</a>
 
-@if (CurrentUser.CurrentUser is null)
-{
-    <p class="text-muted">Pick a user in the sidebar first.</p>
-}
-else if (_loaded && _board is null)
+@if (_loaded && _board is null)
 {
     <div class="empty-state">
         <div class="empty-state-icon"><Icon Name="magnifying-glass" Size="26" /></div>

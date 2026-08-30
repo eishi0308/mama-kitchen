@@ -1041,3 +1041,229 @@ textarea:focus-visible,
 .hiw-chip-text { font-size: var(--fs-sm); line-height: 1.4; }
 .hiw-chip-text strong { display: block; }
 .hiw-chip-text span { color: var(--color-text-muted); font-size: var(--fs-xs); }
+
+/* =========================================================================
+   SIGN IN
+   The first screen a stranger sees, so it carries the product's whole pitch
+   in two lines and then gets out of the way. Two ways in, visibly unequal:
+   Google is the real one, the demo accounts are an aside.
+   ========================================================================= */
+.auth-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: var(--space-5) var(--space-4);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-6);
+}
+
+.auth-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--space-5);
+}
+
+.auth-brand-mark {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: var(--color-primary);
+}
+
+.auth-title {
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    margin: 0 0 var(--space-1);
+}
+
+.auth-sub {
+    color: var(--color-text-muted);
+    font-size: var(--fs-sm);
+    margin: 0 0 var(--space-5);
+}
+
+/* Google's own brand guidance: white button, grey border, never restyled into
+   the host app's colours. */
+.auth-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    width: 100%;
+    min-height: 48px;
+    padding: 0.75rem 1rem;
+    background: #fff;
+    color: #1F1F1F;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-base);
+    font-weight: 600;
+    text-decoration: none;
+    transition: background var(--duration-micro) var(--ease-standard),
+                box-shadow var(--duration-micro) var(--ease-standard);
+}
+
+.auth-google:hover {
+    background: #F7F7F7;
+    box-shadow: var(--shadow-sm);
+    color: #1F1F1F;
+}
+
+.auth-google-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: conic-gradient(#EA4335 0 25%, #FBBC05 0 50%, #34A853 0 75%, #4285F4 0);
+    color: #fff;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.75rem;
+}
+
+.auth-fineprint {
+    margin: var(--space-3) 0 0;
+    font-size: var(--fs-xs);
+    line-height: 1.5;
+    color: var(--color-text-faint);
+}
+
+.auth-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.7rem 0.85rem;
+    margin-bottom: var(--space-4);
+    background: var(--color-danger-tint);
+    border: 1px solid var(--color-danger);
+    border-radius: var(--radius-sm);
+    color: var(--color-danger);
+    font-size: var(--fs-sm);
+}
+
+.auth-notconfigured {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.85rem;
+    background: var(--color-warning-tint);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+}
+
+.auth-notconfigured code {
+    font-size: 0.8em;
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: var(--space-5) 0;
+    color: var(--color-text-faint);
+    font-size: var(--fs-xs);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+}
+
+.auth-demo-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: var(--space-3);
+}
+
+.auth-demo-head strong { font-size: var(--fs-sm); }
+
+.auth-demo-head span {
+    font-size: var(--fs-xs);
+    color: var(--color-text-muted);
+}
+
+.auth-demo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+}
+
+.auth-demo-item { margin: 0; }
+
+.auth-demo-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    min-height: 48px;
+    padding: 0.5rem 0.65rem;
+    background: var(--color-surface-alt);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--duration-micro) var(--ease-standard),
+                background var(--duration-micro) var(--ease-standard);
+}
+
+.auth-demo-btn:hover {
+    background: #fff;
+    border-color: var(--color-primary);
+}
+
+.auth-demo-avatar { font-size: 1.25rem; line-height: 1; }
+
+.auth-demo-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.auth-demo-name {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.auth-demo-role {
+    font-size: var(--fs-xs);
+    color: var(--color-text-muted);
+}
+
+.auth-pending {
+    padding: var(--space-6);
+    text-align: center;
+    color: var(--color-text-muted);
+}
+
+/* The sign-in shell: no sidebar, so the card centres on the whole viewport. */
+.auth-shell {
+    min-height: 100vh;
+    background: var(--color-bg);
+}

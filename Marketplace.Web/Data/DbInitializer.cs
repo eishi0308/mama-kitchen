@@ -11,22 +11,39 @@ public static class DbInitializer
     {
         db.Database.EnsureCreated();
 
-        if (db.Users.Any()) return; // already seeded
+        // EnsureCreated creates the schema once and never alters it again, so a
+        // database file from before a model change survives with the old
+        // columns and the first query against it fails somewhere deep in EF.
+        // This turns that into an instruction.
+        try
+        {
+            if (db.Users.Any()) return; // already seeded
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 1)
+        {
+            throw new InvalidOperationException(
+                "marketplace.db was created by an older version of the model and is missing columns. " +
+                "This app uses EnsureCreated(), not migrations, so the fix is to delete the file and let " +
+                "it reseed: stop the app and run  rm Marketplace.Web/marketplace.db", ex);
+        }
 
+        // Every seeded account is flagged IsDemo. That flag is load-bearing:
+        // /auth/demo refuses to sign anyone into a row without it, so a real
+        // Google account can never be entered through the demo door.
         // --- Buyers (no SellerProfile — pure buyer-side demo accounts) ---
-        var eishi = new User { Name = "Eishi", Avatar = "🧑‍💻" };
-        var haruka = new User { Name = "Haruka", Avatar = "👩‍🎨" };
-        var tom = new User { Name = "Tom", Avatar = "🧔" };
-        var priya = new User { Name = "Priya", Avatar = "👩‍🔬" };
+        var eishi = new User { Name = "Eishi", Avatar = "🧑‍💻", IsDemo = true };
+        var haruka = new User { Name = "Haruka", Avatar = "👩‍🎨", IsDemo = true };
+        var tom = new User { Name = "Tom", Avatar = "🧔", IsDemo = true };
+        var priya = new User { Name = "Priya", Avatar = "👩‍🔬", IsDemo = true };
         db.Users.AddRange(eishi, haruka, tom, priya);
 
         // --- Cooks ---
-        var maya = new User { Name = "Maya", Avatar = "👩‍🍳" };
-        var yuki = new User { Name = "Yuki", Avatar = "👨‍🍳" };
-        var minh = new User { Name = "Minh", Avatar = "👩‍🍳" };
-        var ravi = new User { Name = "Ravi", Avatar = "👨‍🍳" };
-        var soojin = new User { Name = "Soo-jin", Avatar = "👩‍🍳" };
-        var amir = new User { Name = "Amir", Avatar = "👨‍🍳" };
+        var maya = new User { Name = "Maya", Avatar = "👩‍🍳", IsDemo = true };
+        var yuki = new User { Name = "Yuki", Avatar = "👨‍🍳", IsDemo = true };
+        var minh = new User { Name = "Minh", Avatar = "👩‍🍳", IsDemo = true };
+        var ravi = new User { Name = "Ravi", Avatar = "👨‍🍳", IsDemo = true };
+        var soojin = new User { Name = "Soo-jin", Avatar = "👩‍🍳", IsDemo = true };
+        var amir = new User { Name = "Amir", Avatar = "👨‍🍳", IsDemo = true };
         db.Users.AddRange(maya, yuki, minh, ravi, soojin, amir);
         db.SaveChanges();
 

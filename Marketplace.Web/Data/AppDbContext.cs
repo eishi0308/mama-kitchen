@@ -21,6 +21,16 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // One Google account maps to exactly one User row. The filtered unique
+        // index is what actually enforces that under a race: two concurrent
+        // first-time sign-ins from the same Google account would otherwise both
+        // see "no user yet" and both insert. Filtered so the many demo accounts,
+        // which all have a NULL subject id, don't collide with each other.
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.GoogleSubjectId)
+            .IsUnique()
+            .HasFilter("\"GoogleSubjectId\" IS NOT NULL");
+
         modelBuilder.Entity<SellerProfile>()
             .HasOne(sp => sp.User)
             .WithOne(u => u.SellerProfile)

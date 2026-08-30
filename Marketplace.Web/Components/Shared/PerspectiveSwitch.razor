@@ -1,26 +1,37 @@
 @inject CurrentUserService CurrentUser
-@inject NavigationManager Nav
+@inject Marketplace.Web.Data.AppDbContext Db
+@using Microsoft.EntityFrameworkCore
 
 @* The thing that makes a two-sided marketplace legible: jump to the exact same
    order, seen from the other person's side. Without it the buyer flow and the
    cook flow are two apps that happen to share a database — you can never watch
    a handover happen from both ends.
 
-   This is a demo affordance and says so. Real auth means you are one person. *@
+   This only ever appears while you're signed into a demo account, and it can
+   only ever land you on another demo account. Once you're signed in with
+   Google you are one person, and a button that silently signed you out of your
+   own account into someone else's would be a lie about what the app can do. *@
 
-<div class="perspective">
-    <div class="perspective-head">
-        <Icon Name="users" Size="15" />
-        <span>See the other side</span>
+@if (_available)
+{
+    <div class="perspective">
+        <div class="perspective-head">
+            <Icon Name="users" Size="15" />
+            <span>See the other side</span>
+        </div>
+        <p class="perspective-body">@Explanation</p>
+        <DemoSignInForm UserId="TargetUserId" ReturnUrl="@TargetUrl">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <span class="perspective-avatar">@TargetAvatar</span>
+                View as @TargetName
+                <Icon Name="arrow-right" Size="14" />
+            </button>
+        </DemoSignInForm>
+        <div class="perspective-note">
+            Signs you into another demo account. Demo only — a real account is just you.
+        </div>
     </div>
-    <p class="perspective-body">@Explanation</p>
-    <button class="btn btn-sm btn-outline-secondary" @onclick="Switch">
-        <span class="perspective-avatar">@TargetAvatar</span>
-        View as @TargetName
-        <Icon Name="arrow-right" Size="14" />
-    </button>
-    <div class="perspective-note">Switches the demo user, like the sidebar dropdown.</div>
-</div>
+}
 
 @code {
     [Parameter, EditorRequired] public int TargetUserId { get; set; }
@@ -30,11 +41,16 @@
     [Parameter, EditorRequired] public string TargetUrl { get; set; } = "";
     [Parameter] public string Explanation { get; set; } = "";
 
-    private async Task Switch()
+    private bool _available;
+
+    protected override async Task OnParametersSetAsync()
     {
-        await CurrentUser.LoginAsync(TargetUserId);
-        // Force a full reload so every page's state is rebuilt as the new user
-        // rather than half-rendered from the previous one's circuit state.
-        Nav.NavigateTo(TargetUrl, forceLoad: true);
+        // Both ends have to be demo accounts: you, so we aren't signing a real
+        // person out of their own session, and the target, because /auth/demo
+        // refuses anything else anyway — better to hide the button than to
+        // offer one that bounces off the endpoint's guard.
+        _available = CurrentUser.IsDemoAccount
+                     && await Db.Users.AsNoTracking()
+                         .AnyAsync(u => u.Id == TargetUserId && u.IsDemo);
     }
 }

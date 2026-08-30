@@ -1,15 +1,12 @@
 @page "/kitchen/earnings"
+@attribute [Authorize]
 @inject ISellerService Sellers
 @inject CurrentUserService CurrentUser
 @implements IDisposable
 
 <PageTitle>Earnings — Batch</PageTitle>
 
-@if (CurrentUser.CurrentUser is null)
-{
-    <p class="text-muted">Pick a user in the sidebar first.</p>
-}
-else if (!CurrentUser.IsSeller)
+@if (!CurrentUser.IsSeller)
 {
     <div class="empty-state">
         <div class="empty-state-icon"><Icon Name="wallet" Size="26" /></div>

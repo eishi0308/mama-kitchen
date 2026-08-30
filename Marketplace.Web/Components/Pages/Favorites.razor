@@ -1,4 +1,5 @@
 @page "/favorites"
+@attribute [Authorize]
 @inject IFavoriteService FavoriteService
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Nav
@@ -8,11 +9,7 @@
 
 <h1 class="page-title" style="font-size:var(--fs-xl); margin-bottom:var(--space-4);"><Icon Name="heart" Size="22" /> Saved</h1>
 
-@if (CurrentUser.CurrentUser is null)
-{
-    <p class="text-muted">Pick a user in the sidebar first.</p>
-}
-else if (_drops is null)
+@if (_drops is null)
 {
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
         @for (var i = 0; i < 4; i++)

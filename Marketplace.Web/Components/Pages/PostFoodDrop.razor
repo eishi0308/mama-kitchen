@@ -1,5 +1,6 @@
 @page "/post"
 @page "/kitchen/drops/{Id:int}/edit"
+@attribute [Authorize]
 @using Microsoft.EntityFrameworkCore
 @inject IFoodDropService FoodDropService
 @inject ISellerService Sellers
@@ -9,15 +10,7 @@
 
 <PageTitle>@(IsEdit ? "Edit food drop" : "Cook & sell") — Batch</PageTitle>
 
-@if (CurrentUser.CurrentUser is null)
-{
-    <div class="empty-state">
-        <div class="empty-state-icon"><Icon Name="user" Size="26" /></div>
-        <h3>Pick who you are first</h3>
-        <p>Choose a demo user in the sidebar to post a food drop.</p>
-    </div>
-}
-else if (!CurrentUser.IsSeller)
+@if (!CurrentUser.IsSeller)
 {
     @* This used to be a dead end telling buyers to go switch accounts. It's
        now the entry point to onboarding — the one thing they actually need. *@

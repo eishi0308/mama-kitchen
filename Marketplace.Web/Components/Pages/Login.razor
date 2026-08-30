@@ -1,0 +1,103 @@
+@page "/login"
+@layout Marketplace.Web.Components.Layout.AuthLayout
+@using Microsoft.EntityFrameworkCore
+@inject UserAccountService Accounts
+@inject NavigationManager Nav
+@inject IConfiguration Config
+
+<PageTitle>Sign in · Batch</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-brand"><span class="auth-brand-mark"></span>Batch</div>
+        <h1 class="auth-title">Sign in</h1>
+        <p class="auth-sub">Homemade food from neighbours who cook. Pickup only.</p>
+
+        @if (_error is not null)
+        {
+            <div class="auth-error" role="alert">
+                <Icon Name="warning" Size="16" />
+                <span>@_error</span>
+            </div>
+        }
+
+        @* --- The real way in --- *@
+        @if (_googleConfigured)
+        {
+            <a class="auth-google" href="/auth/login/google?returnUrl=@Uri.EscapeDataString(_returnUrl)">
+                <span class="auth-google-mark" aria-hidden="true">G</span>
+                Continue with Google
+            </a>
+            <p class="auth-fineprint">
+                We store your name, email and picture — nothing else. No password
+                is ever created, because there's nothing to create one for.
+            </p>
+        }
+        else
+        {
+            @* Not an error state. The app is fully usable through the demo
+               accounts below; Google simply hasn't been given credentials on
+               this machine yet, and saying so beats a dead button. *@
+            <div class="auth-notconfigured">
+                <strong>Google sign-in isn't configured on this server.</strong>
+                <span>Add <code>Authentication:Google:ClientId</code> and
+                <code>ClientSecret</code> to enable it — see the README. The demo
+                accounts below work regardless.</span>
+            </div>
+        }
+
+        @if (_demoUsers.Count > 0)
+        {
+            <div class="auth-divider"><span>or</span></div>
+
+            <div class="auth-demo">
+                <div class="auth-demo-head">
+                    <strong>Just looking around?</strong>
+                    <span>Step into a seeded account. Fake money, real flows.</span>
+                </div>
+
+                <div class="auth-demo-grid">
+                    @foreach (var u in _demoUsers)
+                    {
+                        <DemoSignInForm UserId="u.Id" ReturnUrl="@_returnUrl" Class="auth-demo-item">
+                            <button type="submit" class="auth-demo-btn">
+                                <span class="auth-demo-avatar">@u.Avatar</span>
+                                <span class="auth-demo-text">
+                                    <span class="auth-demo-name">@u.Name</span>
+                                    <span class="auth-demo-role">
+                                        @(u.SellerProfile is not null ? "cook & buyer" : "buyer")
+                                    </span>
+                                </span>
+                            </button>
+                        </DemoSignInForm>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<User> _demoUsers = new();
+    private bool _googleConfigured;
+    private string _returnUrl = "/";
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _googleConfigured = !string.IsNullOrWhiteSpace(Config["Authentication:Google:ClientId"]);
+        _demoUsers = await Accounts.GetDemoUsersAsync();
+
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query);
+        _returnUrl = Marketplace.Web.Auth.AuthEndpoints.SafeReturnUrl(query["returnUrl"]);
+
+        _error = query["error"] switch
+        {
+            "google-not-configured" => "Google sign-in isn't set up on this server yet.",
+            "not-a-demo-account" => "That account can only be reached by signing in.",
+            "access-denied" => "Google sign-in was cancelled.",
+            null => null,
+            _ => "Something went wrong signing you in. Try again.",
+        };
+    }
+}

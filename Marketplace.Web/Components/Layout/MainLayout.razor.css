@@ -6,6 +6,9 @@
 
 main {
     flex: 1;
+    /* Without this a wide child (the meal grid) reports a huge min-content
+       width, refuses to shrink, and the sidebar absorbs the difference. */
+    min-width: 0;
 }
 
 .sidebar {
@@ -52,6 +55,11 @@ main {
     }
 
     .sidebar {
+        /* flex-shrink: 0, not the default 1. The declared 250px was only ever a
+           suggestion: the content column pushed back and the sidebar was
+           actually rendering at 185px, which is why its controls looked cramped
+           and the user picker clipped its own longest option. */
+        flex: 0 0 250px;
         width: 250px;
         height: 100vh;
         position: sticky;

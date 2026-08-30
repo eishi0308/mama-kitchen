@@ -1,5 +1,6 @@
 @page "/kitchen"
 @page "/my-food-drops"
+@attribute [Authorize]
 @inject IFoodDropService FoodDropService
 @inject ISellerService Sellers
 @inject CurrentUserService CurrentUser
@@ -11,15 +12,7 @@
 
 <PageTitle>Your kitchen — Batch</PageTitle>
 
-@if (CurrentUser.CurrentUser is null)
-{
-    <div class="empty-state">
-        <div class="empty-state-icon"><Icon Name="user" Size="26" /></div>
-        <h3>Pick who you are first</h3>
-        <p>Choose a demo user in the sidebar to open their kitchen.</p>
-    </div>
-}
-else if (!CurrentUser.IsSeller)
+@if (!CurrentUser.IsSeller)
 {
     @* A buyer-only account landing here used to hit a dead end. Now it's the
        top of the seller funnel instead. *@

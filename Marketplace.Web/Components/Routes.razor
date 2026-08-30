@@ -1,6 +1,18 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
+@* AuthorizeRouteView replaces RouteView so that [Authorize] on a page is
+   actually enforced by the router rather than being a decorative attribute. *@
+<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                @* Anonymous visitors get sent to sign in and then back to where
+                   they were headed. An authenticated user landing here means a
+                   genuine permission failure, not a missing session. *@
+                <RedirectToLogin />
+            </NotAuthorized>
+            <Authorizing>
+                <div class="auth-pending">Checking your session…</div>
+            </Authorizing>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>

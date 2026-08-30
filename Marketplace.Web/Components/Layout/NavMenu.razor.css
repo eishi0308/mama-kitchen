@@ -126,7 +126,12 @@
         box-shadow: 0 -4px 16px rgba(43, 33, 27, 0.08);
     }
 
-    .bottom-nav-link {
+    /* ::deep throughout. These rules target <NavLink> and <Icon>, which are
+       child components — Blazor never stamps this stylesheet's scope attribute
+       onto their rendered elements, so the un-deeped selectors matched nothing
+       and the phone tab bar has been rendering as a row of bare underlined
+       links this whole time. */
+    .bottom-nav ::deep .bottom-nav-link {
         flex: 1;
         display: flex;
         flex-direction: column;
@@ -142,19 +147,20 @@
         transition: color var(--duration-micro) var(--ease-standard);
     }
 
-    .bottom-nav-icon {
+    .bottom-nav ::deep .bottom-nav-icon {
         transition: transform var(--duration-micro) var(--ease-spring);
     }
 
-    .bottom-nav-link:active .bottom-nav-icon {
+    .bottom-nav ::deep .bottom-nav-link:active .bottom-nav-icon {
         transform: scale(0.85);
     }
 
-    .bottom-nav-link.active {
+    .bottom-nav ::deep .bottom-nav-link.active {
         color: var(--color-primary);
     }
 
-    .bottom-nav-cta .bottom-nav-icon {
+    .bottom-nav ::deep .bottom-nav-cta,
+    .bottom-nav ::deep .bottom-nav-cta .bottom-nav-icon {
         color: var(--color-primary);
     }
 }
@@ -174,52 +180,146 @@
     }
 }
 
-/* Two-world mode switch (Eat / Cook) */
+/* =========================================================================
+   THE TWO-WORLD SWITCH (Eat / Cook)
+   The one control the whole product hangs off, so it is sized and weighted
+   like it: two large cards, each naming its world *and* what you do there,
+   with an unmissable filled state for the side you're currently on. It used
+   to be a 13px segmented pill — legible, but it read as a minor preference
+   toggle rather than the door between two halves of a marketplace.
+   ========================================================================= */
 .mode-switch {
-    display: flex;
-    background: rgba(255, 255, 255, 0.07);
-    border-radius: var(--radius-full);
-    padding: 3px;
-    gap: 2px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: var(--radius-md);
 }
-.mode-switch button {
-    flex: 1;
+
+.mode-option {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    /* Comfortably past the 44px touch-target floor on every screen. */
+    min-height: 86px;
+    padding: 0.7rem 0.35rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.72);
+    text-align: center;
+    cursor: pointer;
+    transition: background var(--duration-micro) var(--ease-standard),
+                color var(--duration-micro) var(--ease-standard),
+                transform var(--duration-micro) var(--ease-standard);
+}
+
+.mode-option:hover {
+    background: rgba(255, 255, 255, 0.10);
+    color: #fff;
+}
+
+.mode-option:active {
+    transform: scale(0.97);
+}
+
+.mode-option:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+/* Solid white against a dark sidebar: the highest-contrast pairing available
+   here, so "which side am I on" is answerable from across the room. */
+.mode-option.active {
+    background: #fff;
+    color: var(--color-text);
+    box-shadow: var(--shadow-sm);
+}
+
+.mode-option ::deep .mode-option-icon {
+    opacity: 0.92;
+    margin-bottom: 2px;
+}
+
+.mode-option.active ::deep .mode-option-icon {
+    color: var(--color-primary);
+    opacity: 1;
+}
+
+.mode-option-label {
+    font-size: var(--fs-base);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+/* The half that answers "and what happens if I tap this?" — the old pill
+   said only "Cook", which is a place, not an outcome. */
+.mode-option-sub {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1.25;
+    opacity: 0.78;
+}
+
+.mode-option-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+}
+
+/* Compact variant for the mobile top bar (see .top-row). */
+.mode-switch-compact {
+    display: none;
+    gap: 2px;
+    padding: 3px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: var(--radius-full);
+}
+
+.mode-switch-compact button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.3rem;
+    min-height: 34px;
+    padding: 0.3rem 0.75rem;
     border: none;
+    border-radius: var(--radius-full);
     background: transparent;
-    color: rgba(255, 255, 255, 0.72);
+    color: rgba(255, 255, 255, 0.75);
     font-size: 0.8125rem;
-    font-weight: 600;
-    padding: 0.4rem 0.5rem;
-    border-radius: var(--radius-full);
+    font-weight: 700;
     cursor: pointer;
-    transition: background 150ms ease, color 150ms ease;
-}
-.mode-switch button:hover { color: #fff; }
-.mode-switch button.active { background: #fff; color: #2B211B; }
-
-.nav-section-label {
-    padding: 0 1.5rem;
-    margin-bottom: 0.35rem;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.42);
+    transition: background var(--duration-micro) var(--ease-standard),
+                color var(--duration-micro) var(--ease-standard);
 }
 
-.nav-role-tag {
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.85);
-    background: rgba(255, 255, 255, 0.14);
-    border-radius: var(--radius-full);
-    padding: 0.15rem 0.5rem;
+.mode-switch-compact button.active {
+    background: #fff;
+    color: var(--color-text);
+}
+
+.mode-switch-compact button:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+@media (max-width: 640.98px) {
+    .mode-switch-compact { display: inline-flex; }
+
+    /* Leave room for the hamburger, which is absolutely positioned at the
+       right edge of the same bar. */
+    .top-row .container-fluid {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding-right: 4.25rem;
+    }
 }
 
 /* Count badge on a nav item — the cook's "you have things to do" signal */
@@ -237,7 +337,117 @@
     justify-content: center;
     font-variant-numeric: tabular-nums;
 }
-.mode-switch button.active .nav-badge { background: var(--color-primary); color: #fff; }
-.mode-switch .nav-badge { margin-left: 0.25rem; }
 
-.nav-link-invite { color: #F3C9AF !important; }
+
+/* The account block. Quiet on purpose — it says who you are and how to leave,
+   and nothing else competes with the Eat/Cook switch below it. */
+.current-user-avatar {
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+.account-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    color: #fff;
+}
+
+.account-photo {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.account-identity {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.25;
+}
+
+.account-name {
+    font-weight: 600;
+    font-size: var(--fs-sm);
+}
+
+.account-email {
+    font-size: 0.6875rem;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* Says out loud that this isn't a real account, so nobody wonders why their
+   Google profile is showing someone else's kitchen. */
+.account-demo-tag {
+    align-self: flex-start;
+    margin-top: 2px;
+    padding: 0.05rem 0.4rem;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.16);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.5875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.account-actions { margin: 0.4rem 0 0; }
+
+.account-link {
+    padding: 0;
+    border: none;
+    background: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: var(--fs-xs);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.account-link:hover { color: #fff; }
+
+.account-switch { margin-top: 0.65rem; }
+
+.account-switch-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.6875rem;
+}
+
+.account-signin {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    min-height: 40px;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    color: var(--color-text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.account-signin:hover { background: #F3ECE3; color: var(--color-text); }
+
+.nav-scrollable .form-select {
+    padding-right: 2.25rem;
+    font-size: var(--fs-sm);
+    text-overflow: ellipsis;
+}
+
+/* The bottom bar mixes NavLinks and buttons (Eat / Cook are actions, not
+   destinations); this keeps the button ones from inheriting button chrome. */
+.bottom-nav ::deep button.bottom-nav-link {
+    border: none;
+    background: none;
+    padding: 0;
+    font-family: inherit;
+    cursor: pointer;
+}

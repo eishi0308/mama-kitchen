@@ -5,11 +5,33 @@
 @inject IFoodDropService FoodDropService
 @inject ISellerService Sellers
 @inject NavigationManager Nav
+@inject UserAccountService Accounts
+@inject AntiforgeryStateProvider Antiforgery
 @implements IDisposable
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href=""><span class="brand-mark"></span>Batch</a>
+
+        @* Mobile only. The full-size switch lives in the drawer, and a drawer
+           you have to open is a switch you can't find — on a phone the door
+           between the two sides has to be on screen at all times. *@
+        <div class="mode-switch-compact" role="tablist" aria-label="Eat or cook">
+            <button type="button" role="tab" aria-selected="@(!CookActive)"
+                    class="@(CookActive ? "" : "active")"
+                    @onclick="() => SetMode(AppMode.Eat)">
+                <Icon Name="fork-knife" Size="15" /> Eat
+            </button>
+            <button type="button" role="tab" aria-selected="@CookActive"
+                    class="@(CookActive ? "active" : "")"
+                    @onclick="() => SetMode(AppMode.Cook)">
+                <Icon Name="chef-hat" Size="15" /> Cook
+                @if (_actionsNeeded > 0)
+                {
+                    <span class="nav-badge nav-badge-sm">@_actionsNeeded</span>
+                }
+            </button>
+        </div>
     </div>
 </div>
 
@@ -18,64 +40,110 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
 
     <div class="px-3 py-3">
-        @if (CurrentUser.CurrentUser is not null)
+        @if (CurrentUser.CurrentUser is { } me)
         {
-            <div class="d-flex align-items-center mb-2 current-user-chip">
-                <span style="font-size:1.4rem;">@CurrentUser.CurrentUser.Avatar</span>
-                <span class="ms-2">@CurrentUser.CurrentUser.Name</span>
-                @if (CurrentUser.IsSeller)
+            <div class="account-chip">
+                @if (!string.IsNullOrEmpty(me.PictureUrl))
                 {
-                    <span class="ms-auto nav-role-tag">Cook</span>
+                    <img class="account-photo" src="@me.PictureUrl" alt="" referrerpolicy="no-referrer" />
                 }
+                else
+                {
+                    <span class="current-user-avatar">@me.Avatar</span>
+                }
+                <span class="account-identity">
+                    <span class="account-name text-truncate">@me.Name</span>
+                    @if (CurrentUser.IsDemoAccount)
+                    {
+                        <span class="account-demo-tag">Demo account</span>
+                    }
+                    else if (!string.IsNullOrEmpty(me.Email))
+                    {
+                        <span class="account-email text-truncate">@me.Email</span>
+                    }
+                </span>
             </div>
+
+            @* Sign-out is a POST for the same reason sign-in is: it rewrites the
+               auth cookie, which an interactive circuit can't do. A GET would
+               also mean any image tag on any site could log you out. *@
+            <form method="post" action="/auth/logout" class="account-actions">
+                @if (_antiforgery is not null)
+                {
+                    <input type="hidden" name="@_antiforgery.FormFieldName" value="@_antiforgery.Value" />
+                }
+                <button type="submit" class="account-link">Sign out</button>
+            </form>
+
+            @if (CurrentUser.IsDemoAccount)
+            {
+                <div class="account-switch">
+                    <label class="account-switch-label" for="demo-switch">Switch demo account</label>
+                    @* A form, not an @@onchange handler — see DemoSignInForm. *@
+                    <form method="post" action="/auth/demo">
+                        @if (_antiforgery is not null)
+                        {
+                            <input type="hidden" name="@_antiforgery.FormFieldName" value="@_antiforgery.Value" />
+                        }
+                        <input type="hidden" name="returnUrl" value="@CurrentPath()" />
+                        <select id="demo-switch" name="userId" class="form-select form-select-sm"
+                                onchange="this.form.submit()">
+                            @foreach (var u in _demoUsers)
+                            {
+                                <option value="@u.Id" selected="@(u.Id == me.Id)">@u.Avatar @u.Name</option>
+                            }
+                        </select>
+                        <noscript><button type="submit" class="account-link">Switch</button></noscript>
+                    </form>
+                </div>
+            }
         }
         else
         {
-            <div class="demo-note mb-2">Not signed in — pick someone below</div>
+            <a class="account-signin" href="/login?returnUrl=@Uri.EscapeDataString(CurrentPath())">
+                <Icon Name="user" Size="16" /> Sign in
+            </a>
+            <div class="form-text demo-note">Google, or a one-click demo account</div>
         }
-        @* Always rendered, even with nobody selected yet — otherwise a
-           first-time visitor with no stored session has no way to ever
-           pick a user. Found by actually driving the app, not by reading
-           the code (brief Section 48). *@
-        <select class="form-select form-select-sm" @onchange="SwitchUser">
-            <option value="" selected="@(CurrentUser.CurrentUser is null)" disabled>Choose who you are…</option>
-            @foreach (var u in _allUsers)
-            {
-                <option value="@u.Id" selected="@(u.Id == CurrentUser.CurrentUser?.Id)">@u.Avatar @u.Name</option>
-            }
-        </select>
-        <div class="form-text demo-note">demo login — switch "who you are" anytime</div>
     </div>
 
-    @* The two-world switch. Only a user with a kitchen sees it; for everyone
-       else the Cook side is a single "start selling" invitation instead, so
-       the nav never offers a dashboard that isn't theirs. *@
-    @if (CurrentUser.IsSeller)
-    {
-        <div class="px-3 pb-3">
-            <div class="mode-switch" role="tablist" aria-label="Buying or selling">
-                <button role="tab" aria-selected="@(CurrentUser.Mode == AppMode.Eat)"
-                        class="@(CurrentUser.Mode == AppMode.Eat ? "active" : "")"
-                        @onclick="() => SetMode(AppMode.Eat)">
-                    <Icon Name="fork-knife" Size="15" /> Eat
-                </button>
-                <button role="tab" aria-selected="@(CurrentUser.Mode == AppMode.Cook)"
-                        class="@(CurrentUser.Mode == AppMode.Cook ? "active" : "")"
-                        @onclick="() => SetMode(AppMode.Cook)">
-                    <Icon Name="chef-hat" Size="15" /> Cook
-                    @if (_actionsNeeded > 0)
-                    {
-                        <span class="nav-badge">@_actionsNeeded</span>
-                    }
-                </button>
-            </div>
+    @* ── The two-world switch ──────────────────────────────────────────────
+       Batch only makes sense if you can see that it has two sides, so this is
+       the largest, highest-contrast control in the app and it sits above
+       everything else.
+
+       It is now shown to EVERYONE, not just people who already have a kitchen.
+       That was the real bug: a buyer-only user saw no switch at all, so the
+       entire Cook half of the marketplace was invisible to precisely the
+       people who hadn't discovered it yet. For them the Cook card is an
+       invitation — it reads "Start selling" and opens /sell/start — rather
+       than a dashboard that isn't theirs. ── *@
+    <div class="px-3 pb-3">
+        <div class="mode-switch" role="tablist" aria-label="Are you here to eat or to cook?">
+            <button type="button" role="tab" aria-selected="@(!CookActive)"
+                    class="mode-option @(CookActive ? "" : "active")"
+                    @onclick="() => SetMode(AppMode.Eat)">
+                <Icon Name="fork-knife" Size="26" Class="mode-option-icon" />
+                <span class="mode-option-label">Eat</span>
+                <span class="mode-option-sub">Order nearby</span>
+            </button>
+            <button type="button" role="tab" aria-selected="@CookActive"
+                    class="mode-option @(CookActive ? "active" : "")"
+                    @onclick="() => SetMode(AppMode.Cook)">
+                <Icon Name="chef-hat" Size="26" Class="mode-option-icon" />
+                <span class="mode-option-label">Cook</span>
+                <span class="mode-option-sub">@(CurrentUser.IsSeller ? "Sell your food" : "Start selling")</span>
+                @if (_actionsNeeded > 0)
+                {
+                    <span class="nav-badge mode-option-badge">@_actionsNeeded</span>
+                }
+            </button>
         </div>
-    }
+    </div>
 
     @if (CurrentUser.Mode == AppMode.Cook && CurrentUser.IsSeller)
     {
         <nav class="nav flex-column" aria-label="Cook">
-            <div class="nav-section-label">Your kitchen</div>
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="kitchen" Match="NavLinkMatch.All">
                     <Icon Name="storefront" Class="nav-icon" /> Dashboard
@@ -133,7 +201,6 @@
     else
     {
         <nav class="nav flex-column" aria-label="Eat">
-            <div class="nav-section-label">Eat</div>
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                     <Icon Name="house" Class="nav-icon" /> Discover
@@ -159,18 +226,11 @@
                 </NavLink>
             </div>
 
-            @* The entry point to the other half of the marketplace. Previously
-               the nav linked buyer-only users straight at /post, which could
-               only ever tell them to go away. *@
-            @if (!CurrentUser.IsSeller)
-            {
-                <div class="nav-item px-3 nav-item-divider">
-                    <NavLink class="nav-link nav-link-invite" href="sell/start">
-                        <Icon Name="chef-hat" Class="nav-icon" /> Start selling
-                    </NavLink>
-                </div>
-            }
-            <div class="nav-item px-3 @(CurrentUser.IsSeller ? "nav-item-divider" : "")">
+            @* The "Start selling" link that used to sit here is gone: the Cook
+               card at the top of the sidebar is now that door, and offering the
+               same door twice, four rows apart, is how a nav starts to feel
+               like a list of everything rather than a set of choices. *@
+            <div class="nav-item px-3 nav-item-divider">
                 <NavLink class="nav-link" href="how-it-works">
                     <Icon Name="info" Class="nav-icon" /> How it works
                 </NavLink>
@@ -185,14 +245,20 @@
 <nav class="bottom-nav" aria-label="Primary">
     @if (CurrentUser.Mode == AppMode.Cook && CurrentUser.IsSeller)
     {
+        @* First slot is the way home to the Eat side. It used to be Messages,
+           which meant a cook on a phone had no route back to the buyer half of
+           the app at all except by opening the hamburger drawer — the switch
+           was there, but nowhere you'd look for it. Messages is still one tap
+           away in the drawer; the other half of the marketplace has to be
+           cheaper to reach than that. *@
+        <button type="button" class="bottom-nav-link" @onclick="() => SetMode(AppMode.Eat)">
+            <Icon Name="fork-knife" Size="22" Class="bottom-nav-icon" /><span>Eat</span>
+        </button>
         <NavLink class="bottom-nav-link" href="kitchen" Match="NavLinkMatch.All">
             <Icon Name="storefront" Size="22" Class="bottom-nav-icon" /><span>Kitchen</span>
         </NavLink>
         <NavLink class="bottom-nav-link" href="kitchen/earnings">
             <Icon Name="wallet" Size="22" Class="bottom-nav-icon" /><span>Earnings</span>
-        </NavLink>
-        <NavLink class="bottom-nav-link" href="messages">
-            <Icon Name="chat" Size="22" Class="bottom-nav-icon" /><span>Messages</span>
         </NavLink>
         <NavLink class="bottom-nav-link bottom-nav-cta" href="post">
             <Icon Name="plus" Size="22" Class="bottom-nav-icon" /><span>New</span>
@@ -209,23 +275,19 @@
         <NavLink class="bottom-nav-link" href="orders">
             <Icon Name="receipt" Size="22" Class="bottom-nav-icon" /><span>Orders</span>
         </NavLink>
-        @if (CurrentUser.IsSeller)
-        {
-            <NavLink class="bottom-nav-link bottom-nav-cta" href="kitchen">
-                <Icon Name="chef-hat" Size="22" Class="bottom-nav-icon" /><span>Kitchen</span>
-            </NavLink>
-        }
-        else
-        {
-            <NavLink class="bottom-nav-link bottom-nav-cta" href="sell/start">
-                <Icon Name="chef-hat" Size="22" Class="bottom-nav-icon" /><span>Sell</span>
-            </NavLink>
-        }
+        @* Routed through SetMode rather than a bare href so the phone's
+           "go cook" button and the switch are literally the same action. *@
+        <button type="button" class="bottom-nav-link bottom-nav-cta" @onclick="() => SetMode(AppMode.Cook)">
+            <Icon Name="chef-hat" Size="22" Class="bottom-nav-icon" />
+            <span>@(CurrentUser.IsSeller ? "Cook" : "Sell")</span>
+        </button>
     }
 </nav>
 
 @code {
-    private List<User> _allUsers = new();
+    private List<User> _demoUsers = new();
+    private Microsoft.AspNetCore.Components.Forms.AntiforgeryRequestToken? _antiforgery;
+    private string _path = "";
     private int _activeOrders;
     private int _actionsNeeded;
     private int _unansweredReviews;
@@ -233,12 +295,25 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _allUsers = await Db.Users.AsNoTracking().OrderBy(u => u.Name).ToListAsync();
+        _antiforgery = Antiforgery.GetAntiforgeryToken();
+        // Only the seeded accounts are listed. The sidebar used to enumerate
+        // every row in Users, which with real sign-ups would be a public
+        // directory of everyone who ever used the app.
+        _demoUsers = await Accounts.GetDemoUsersAsync();
         CurrentUser.OnChange += OnUserChanged;
         Nav.LocationChanged += OnLocationChanged;
         await CurrentUser.InitializeAsync();
         await SyncModeToRouteAsync();
     }
+
+    /// Which card reads as "on". For someone with a kitchen that is simply the
+    /// stored mode. For a buyer it is the route: they can't enter Cook mode
+    /// (they have no kitchen), but standing on the become-a-cook screen while
+    /// the switch insists you're on the Eat side is exactly the kind of small
+    /// lie that makes an interface feel untrustworthy.
+    private bool CookActive =>
+        CurrentUser.Mode == AppMode.Cook
+        || (!CurrentUser.IsSeller && _path is "sell/start" or "post");
 
     /// The nav follows the page, not just the toggle. Landing on /kitchen from a
     /// link, a bookmark or the bottom bar has to put the sidebar in Cook mode —
@@ -246,9 +321,12 @@
     /// Saved and "Start selling".
     private async Task SyncModeToRouteAsync()
     {
+        // Recorded for every user, not just cooks: CookActive reads it to light
+        // the right card for a buyer who is midway through onboarding.
+        _path = Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].TrimEnd('/');
         if (!CurrentUser.IsSeller) return;
 
-        var path = Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].TrimEnd('/');
+        var path = _path;
 
         // /messages is genuinely shared by both sides, so it leaves the current
         // mode alone rather than guessing.
@@ -275,16 +353,25 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task SwitchUser(ChangeEventArgs e)
+    /// Where to come back to after a sign-in round trip.
+    private string CurrentPath()
     {
-        if (int.TryParse(e.Value?.ToString(), out var id))
-        {
-            await CurrentUser.LoginAsync(id);
-        }
+        var relative = Nav.ToBaseRelativePath(Nav.Uri);
+        return "/" + relative;
     }
 
     private async Task SetMode(AppMode mode)
     {
+        // A buyer tapping Cook has no kitchen to open yet. Send them to the one
+        // screen that creates one. Without this the switch would be visible to
+        // everyone but silently do nothing for half of them — SetModeAsync
+        // refuses Cook mode for a non-seller, so the tap would just die.
+        if (mode == AppMode.Cook && !CurrentUser.IsSeller)
+        {
+            Nav.NavigateTo("/sell/start");
+            return;
+        }
+
         await CurrentUser.SetModeAsync(mode);
         // Navigating is what makes the mode stick: SyncModeToRouteAsync would
         // otherwise flip it straight back to match whatever page you're on.

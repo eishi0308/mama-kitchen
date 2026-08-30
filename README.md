@@ -2,9 +2,10 @@
 
 A hyperlocal homemade-food marketplace for Australia: nearby home cooks post scheduled
 "food drops" (dish, price, portions, order deadline, pickup window), buyers reserve and
-pay, cooks confirm pickup with a code. Pickup-only, no delivery network. Fake login (pick
-a demo user, no real auth) — built as a portfolio piece aligned to common AU .NET job
-requirements (ASP.NET Core, REST Controllers, EF Core, Razor/Blazor, relational DB).
+pay, cooks confirm pickup with a code. Pickup-only, no delivery network. Real sign-in
+through Google (OAuth 2.0 + cookie auth), plus one-click demo accounts so the app can be
+explored without one — built as a portfolio piece aligned to common AU .NET job
+requirements (ASP.NET Core, REST Controllers, EF Core, Razor/Blazor, relational DB, auth).
 
 It is a **two-sided** marketplace, and both sides are built end to end: any demo user can
 become a cook, run a kitchen, and sell — and any cook is also a buyer.
@@ -15,15 +16,87 @@ become a cook, run a kitchen, and sell — and any cook is also a buyer.
 ./run.sh
 ```
 
-Then open http://localhost:5289. On first run it creates `Marketplace.Web/marketplace.db`
+Then open http://localhost:5289 and pick a demo account on the sign-in screen — Google
+sign-in needs credentials first, see **Signing in** below. On first run it creates
+`Marketplace.Web/marketplace.db`
 (SQLite) and seeds 6 demo cooks across Sydney suburbs (Strathfield, Chatswood, Burwood,
 Parramatta, Rhodes, Zetland), a few buyer-only demo users, current food drops, and about
 six months of trading history — past batches, collected orders, no-shows and reviews.
 Every cook's rating, order count and earnings figure is **derived from those rows**, not
 hard-coded, so they stay correct as you use the app.
 
-Switch "who you are" from the dropdown in the sidebar to move between people. Cooks get an
-**Eat / Cook** switch; the sidebar follows whichever page you're on.
+While signed into a demo account you can switch between the seeded people from the sidebar.
+Everyone gets an **Eat / Cook** switch at the top of the sidebar — the two halves of the
+marketplace — and the sidebar follows whichever page you're on.
+
+## Signing in
+
+Two ways in, and they are not equal.
+
+**Google** is the real one. First sign-in creates the account — there is no separate
+signup form, because Google already told us the name, email and picture. No password is
+ever created or stored; the only credential this app holds is Google's opaque `sub`
+claim. Accounts are matched on that subject id and never on email address, so a recycled
+Google address can't inherit the previous owner's orders and payouts.
+
+**Demo accounts** are the seeded people (Maya, Priya, …), flagged `IsDemo` in the
+database and offered as one-click buttons on `/login`. They exist so the two-sided story
+can be explored — including "See the other side" — without anyone having to hand over a
+Google account. `/auth/demo` refuses any row without that flag, so the demo door can
+never open a real person's account.
+
+### Enabling Google sign-in
+
+The app runs fine without this — you'll see a notice on `/login` and the demo accounts
+still work. To turn it on:
+
+1. In the [Google Cloud console](https://console.cloud.google.com/apis/credentials),
+   create (or pick) a project.
+2. **OAuth consent screen** → External → fill in app name and support email. While the app
+   is in *Testing*, add your own Google address under **Test users** or sign-in will be
+   refused.
+3. **Credentials → Create credentials → OAuth client ID → Web application**.
+4. Under **Authorised redirect URIs** add exactly:
+
+   ```
+   http://localhost:5289/signin-google
+   ```
+
+   This must match character for character — scheme, port and path. It is
+   `/signin-google`, not `/auth/callback`; that's the Google handler's `CallbackPath`.
+   Add your production URL there too when you deploy.
+5. Put the client id and secret into user-secrets (never `appsettings.json`, which is
+   committed):
+
+   ```
+   dotnet user-secrets --project Marketplace.Web set "Authentication:Google:ClientId" "<your id>"
+   dotnet user-secrets --project Marketplace.Web set "Authentication:Google:ClientSecret" "<your secret>"
+   ```
+
+6. Restart. The **Continue with Google** button appears on its own.
+
+In production supply the same two values as environment variables
+(`Authentication__Google__ClientId`) or from a secret store, and serve over HTTPS so the
+auth cookie can be marked `Secure`.
+
+### How it's wired
+
+| Piece | Where |
+|---|---|
+| Cookie + Google schemes, `OnRedirectToLogin` | `Program.cs` |
+| `/auth/login/google`, `/auth/demo`, `/auth/logout` | `Auth/AuthEndpoints.cs` |
+| Google ticket → `User` row, claims | `Services/UserAccountService.cs` |
+| Reading "who am I" for the UI | `Services/CurrentUserService.cs` |
+| `User.AppUserId()` for controllers | `Auth/ClaimsPrincipalExtensions.cs` |
+
+Sign-in and sign-out are plain HTTP endpoints rather than Blazor event handlers on
+purpose: writing an auth cookie writes a response header, and an interactive Blazor Server
+component runs over a SignalR circuit whose headers went out long ago. Every change of
+identity is a real navigation.
+
+There is no ASP.NET Core Identity here. Google-only means no passwords, no lockout, no
+confirmation emails and no 2FA — Identity's whole surface would be scaffolding around one
+integer.
 
 ## Seeing the flow
 
@@ -77,17 +150,22 @@ takes it, derives the last four digits, and discards the rest.
 - `Models/` — `FoodDrop`, `SellerProfile`, `PickupLocation`, `Order`, `Payment`, `Payout`,
   `Review`, `User`, `Category`, `Message`, `Favorite`
 - `Data/` — `AppDbContext` (EF Core) + `DbInitializer` (demo data + trading history)
+- `Auth/` — `AuthEndpoints` (sign in / out), `ClaimsPrincipalExtensions` (`User.AppUserId()`)
 - `Services/` — business logic shared by the UI and the API: `FoodDropService`,
   `OrderService`, `SellerService`, `MessageService`, `FavoriteService`,
-  `CurrentUserService`, plus `IPaymentGateway` / `MockPaymentGateway` (charge **and
-  refund**, swappable for real Stripe Connect later)
+  `UserAccountService` (Google identity → `User` row), `CurrentUserService` (who am I,
+  for the UI), plus `IPaymentGateway` / `MockPaymentGateway` (charge **and refund**,
+  swappable for real Stripe Connect later)
 - `Controllers/` — REST API: `/api/fooddrops`, `/api/orders`, `/api/cooks`,
-  `/api/categories`, `/api/messages`, `/api/favorites`, `/api/users`
+  `/api/categories`, `/api/messages`, `/api/favorites`, `/api/users/me`. Browsing is
+  anonymous; everything that acts as somebody requires the auth cookie and reads the
+  acting user from it.
 - `Components/Pages/` — buyer: `Home`, `FoodDropDetail`, `CookProfile`, `Checkout`,
   `OrderDetail`, `MyOrders`, `Favorites`, `Messages`; cook: `SellerOnboarding`, `Kitchen`,
   `KitchenDrop`, `PostFoodDrop` (create + edit + repeat), `KitchenEarnings`,
-  `KitchenReviews`, `KitchenProfile`
-- `Components/Shared/` — `MealCard`, `Icon`, `StarRating`, `OrderStatusTrack`, `StatTile`
+  `KitchenReviews`, `KitchenProfile`; plus `Login`
+- `Components/Shared/` — `MealCard`, `Icon`, `StarRating`, `OrderStatusTrack`, `StatTile`,
+  `DemoSignInForm`, `RedirectToLogin`
 
 ## Routes
 
@@ -102,7 +180,7 @@ takes it, derives the last four digits, and discards the rest.
 | `/favorites` | Saved | `/kitchen/earnings` | Earnings + cash out |
 | `/messages` | Shared by both sides | `/kitchen/reviews` | Reviews + replies |
 | `/how-it-works` | Both journeys on one page | | |
-| | | `/kitchen/profile` | Profile, payout account, pickup points |
+| `/login` | Sign in (Google or demo) | `/kitchen/profile` | Profile, payout account, pickup points |
 
 ## Rules the app actually enforces
 
@@ -118,18 +196,25 @@ takes it, derives the last four digits, and discards the rest.
 - A cook can't be paid without a payout account, can't cash out below $10, and the same
   earnings can never be paid out twice.
 - Only the cook who sold a meal can reply to its review.
+- The acting user always comes from the auth cookie, never from a request parameter — so
+  no request can act as, or read the private data of, anyone but its sender.
+- `/auth/demo` will only ever sign you into a row flagged `IsDemo`.
+- `returnUrl` is validated to a same-site path, so sign-in can't be used as an open redirect.
 
 ## Notes
 
 - No real photo upload — food drops show an emoji placeholder, or paste an image URL.
-- "Login" is a fake per-browser selection stored in localStorage, not real auth. The API
-  therefore takes a user id as a query parameter where real auth would supply it.
+- Sign-in is real: Google OAuth 2.0 (PKCE, `openid profile email`) with an HttpOnly cookie
+  session. The demo accounts are a deliberate, flagged shortcut for exploring the app, not
+  a bypass — see **Signing in**.
 - Payment is mocked (`MockPaymentGateway`) — no real money moves, in either direction. The
   platform fee is 10% (`SellerService.PlatformFeeRate`) and the minimum payout is $10.
 - Seeded current drops are generated *relative to when you first run the app*, so if you
   first run it at 2am the pickup windows are early-morning. Delete the db and rerun during
   the day for evening windows.
-- Not yet done (by design, for this pass): SQL Server/Postgres (currently SQLite),
-  automated tests, CI/CD, real Azure deployment, real auth, photo upload, email/push
+- The schema is created with `EnsureCreated()`, not EF migrations, so a model change means
+  deleting `marketplace.db` and letting it reseed. Startup says so if the file is stale.
+- Not yet done (by design, for this pass): SQL Server/Postgres (currently SQLite), EF
+  migrations, automated tests, CI/CD, real Azure deployment, photo upload, email/push
   notifications, and the `Disputed` order state (modelled, no UI).
 - To reset all data, stop the app and delete `Marketplace.Web/marketplace.db`.

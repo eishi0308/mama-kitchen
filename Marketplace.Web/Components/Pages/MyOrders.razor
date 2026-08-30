@@ -1,4 +1,5 @@
 @page "/orders"
+@attribute [Authorize]
 @inject IOrderService OrderService
 @inject CurrentUserService CurrentUser
 @implements IDisposable
@@ -15,15 +16,7 @@
     </div>
 </div>
 
-@if (CurrentUser.CurrentUser is null)
-{
-    <div class="empty-state">
-        <div class="empty-state-icon"><Icon Name="user" Size="26" /></div>
-        <h3>Pick who you are first</h3>
-        <p>Choose a demo user in the sidebar to see their orders.</p>
-    </div>
-}
-else if (_orders is null)
+@if (_orders is null)
 {
     <div class="d-flex flex-column gap-2">
         @for (var i = 0; i < 3; i++)

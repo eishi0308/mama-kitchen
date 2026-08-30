@@ -1,0 +1,30 @@
+@inject AntiforgeryStateProvider Antiforgery
+
+@* A real HTML form that POSTs to /auth/demo.
+
+   It has to be a form, not an @onclick: signing in writes a cookie, which
+   writes a response header, which an interactive Blazor circuit can no longer
+   do. So this leaves Blazor entirely and does a full page POST.
+
+   The hidden antiforgery field is the same token EditForm emits in static SSR;
+   the endpoint binds [FromForm] so ASP.NET Core validates it automatically. *@
+<form method="post" action="/auth/demo" class="@Class">
+    <input type="hidden" name="userId" value="@UserId" />
+    <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+    @if (_token is not null)
+    {
+        <input type="hidden" name="@_token.FormFieldName" value="@_token.Value" />
+    }
+    @ChildContent
+</form>
+
+@code {
+    [Parameter, EditorRequired] public int UserId { get; set; }
+    [Parameter] public string ReturnUrl { get; set; } = "/";
+    [Parameter] public string Class { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private Microsoft.AspNetCore.Components.Forms.AntiforgeryRequestToken? _token;
+
+    protected override void OnInitialized() => _token = Antiforgery.GetAntiforgeryToken();
+}

@@ -1,4 +1,5 @@
 @page "/checkout/{Id:int}"
+@attribute [Authorize]
 @inject IFoodDropService FoodDropService
 @inject IOrderService OrderService
 @inject CurrentUserService CurrentUser
@@ -7,11 +8,7 @@
 
 <PageTitle>Checkout — Batch</PageTitle>
 
-@if (CurrentUser.CurrentUser is null)
-{
-    <p class="text-muted">Pick a user in the sidebar first.</p>
-}
-else if (_drop is null)
+@if (_drop is null)
 {
     <div class="skeleton" style="height:280px; max-width:520px;"></div>
 }

@@ -1,4 +1,5 @@
 @page "/sell/start"
+@attribute [Authorize]
 @inject ISellerService Sellers
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Nav
@@ -6,15 +7,7 @@
 
 <PageTitle>Start selling — Batch</PageTitle>
 
-@if (CurrentUser.CurrentUser is null)
-{
-    <div class="empty-state">
-        <div class="empty-state-icon"><Icon Name="chef-hat" Size="26" /></div>
-        <h3>Pick who you are first</h3>
-        <p>Choose a demo user in the sidebar, then come back to set up a kitchen.</p>
-    </div>
-}
-else if (CurrentUser.IsSeller)
+@if (CurrentUser.IsSeller)
 {
     @* Already a cook — this page has nothing to offer them. *@
     <div class="empty-state">

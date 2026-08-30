@@ -158,7 +158,15 @@ else
 
             @if (CurrentUser.CurrentUser is null)
             {
-                <p class="text-muted"><em>Pick a user in the sidebar to reserve, save or message.</em></p>
+                @* This page is public — you can read the whole listing signed out.
+                   Only the actions need an account, so this is an invitation
+                   rather than a wall. *@
+                <a class="btn btn-primary w-100" href="/login?returnUrl=@Uri.EscapeDataString($"/food/{_drop.Id}")">
+                    Sign in to reserve
+                </a>
+                <p class="text-muted small mt-2 mb-0">
+                    <em>Google, or a one-click demo account.</em>
+                </p>
             }
             else if (_drop.SellerId == CurrentUser.CurrentUser.Id)
             {

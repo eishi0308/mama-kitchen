@@ -1,11 +1,18 @@
+using Marketplace.Web.Auth;
 using Marketplace.Web.Models;
 using Marketplace.Web.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Marketplace.Web.Controllers;
 
+// Every endpoint here acts *as somebody*, so the whole controller requires a
+// signed-in caller and the acting user is always read from the auth cookie.
+// It used to be a query parameter — `?sellerId=2` — which meant anyone could
+// confirm anyone's pickup, cancel anyone's order, or read anyone's history.
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class OrdersController : ControllerBase
 {
     private readonly IOrderService _orders;
@@ -15,7 +22,7 @@ public class OrdersController : ControllerBase
         _orders = orders;
     }
 
-    public record CreateOrderRequest(int BuyerId, int FoodDropId, int Quantity);
+    public record CreateOrderRequest(int FoodDropId, int Quantity);
 
     // POST /api/orders — reserves portions and creates a PendingPayment order.
     // Price/total are computed server-side inside OrderService; nothing here
@@ -23,10 +30,13 @@ public class OrdersController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Order>> Create([FromBody] CreateOrderRequest request)
     {
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+
         if (request.Quantity < 1)
             return BadRequest("Quantity must be at least 1.");
 
-        var result = await _orders.CreateOrderAsync(request.BuyerId, request.FoodDropId, request.Quantity);
+        var result = await _orders.CreateOrderAsync(me.Value, request.FoodDropId, request.Quantity);
         if (!result.Success)
         {
             return result.Error switch
@@ -38,16 +48,20 @@ public class OrdersController : ControllerBase
                 _ => BadRequest(),
             };
         }
-        return CreatedAtAction(nameof(GetById), new { id = result.Order!.Id, requestingUserId = request.BuyerId }, result.Order);
+        return CreatedAtAction(nameof(GetById), new { id = result.Order!.Id }, result.Order);
     }
 
-    // POST /api/orders/5/pay?buyerId=1 — mocked payment confirmation.
+    // POST /api/orders/5/pay — mocked payment confirmation.
     [HttpPost("{id:int}/pay")]
-    public async Task<ActionResult<Order>> Pay(int id, [FromQuery] int buyerId)
+    public async Task<ActionResult<Order>> Pay(int id)
     {
-        var existing = await _orders.GetByIdAsync(id, buyerId);
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+
+        var existing = await _orders.GetByIdAsync(id, me.Value);
         if (existing is null) return NotFound();
-        if (existing.BuyerId != buyerId) return StatusCode(StatusCodes.Status403Forbidden, "This order isn't yours.");
+        if (existing.BuyerId != me.Value)
+            return StatusCode(StatusCodes.Status403Forbidden, "This order isn't yours.");
 
         var order = await _orders.ConfirmPaymentAsync(id);
         return order is null ? NotFound() : order;
@@ -55,11 +69,14 @@ public class OrdersController : ControllerBase
 
     public record ConfirmPickupRequest(string Code);
 
-    // POST /api/orders/5/pickup?sellerId=2 — seller enters the buyer's 4-digit code.
+    // POST /api/orders/5/pickup — the cook enters the buyer's 4-digit code.
     [HttpPost("{id:int}/pickup")]
-    public async Task<IActionResult> ConfirmPickup(int id, [FromQuery] int sellerId, [FromBody] ConfirmPickupRequest request)
+    public async Task<IActionResult> ConfirmPickup(int id, [FromBody] ConfirmPickupRequest request)
     {
-        var result = await _orders.ConfirmPickupAsync(id, sellerId, request.Code);
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+
+        var result = await _orders.ConfirmPickupAsync(id, me.Value, request.Code);
         if (result.Success) return NoContent();
 
         return result.Error switch
@@ -72,70 +89,107 @@ public class OrdersController : ControllerBase
         };
     }
 
-    // GET /api/orders/5?requestingUserId=1
+    // GET /api/orders/5 — scoped to you by OrderService, which returns null for
+    // an order you're neither the buyer nor the cook on.
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<Order>> GetById(int id, [FromQuery] int requestingUserId)
+    public async Task<ActionResult<Order>> GetById(int id)
     {
-        var order = await _orders.GetByIdAsync(id, requestingUserId);
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+
+        var order = await _orders.GetByIdAsync(id, me.Value);
         return order is null ? NotFound() : order;
     }
 
-    // GET /api/orders/by-buyer/1
-    [HttpGet("by-buyer/{buyerId:int}")]
-    public async Task<ActionResult<List<Order>>> GetForBuyer(int buyerId) => await _orders.GetForBuyerAsync(buyerId);
+    // GET /api/orders/mine — what you've bought.
+    [HttpGet("mine")]
+    public async Task<ActionResult<List<Order>>> GetMine()
+    {
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+        return await _orders.GetForBuyerAsync(me.Value);
+    }
 
-    // GET /api/orders/by-seller/2
-    [HttpGet("by-seller/{sellerId:int}")]
-    public async Task<ActionResult<List<Order>>> GetForSeller(int sellerId) => await _orders.GetForSellerAsync(sellerId);
+    // GET /api/orders/selling — what people have bought from you.
+    [HttpGet("selling")]
+    public async Task<ActionResult<List<Order>>> GetSelling()
+    {
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+        return await _orders.GetForSellerAsync(me.Value);
+    }
 
     // --- Buyer-side lifecycle ---
 
-    // POST /api/orders/5/cancel?buyerId=1 — free until the drop's order deadline.
+    // POST /api/orders/5/cancel — free until the drop's order deadline.
     [HttpPost("{id:int}/cancel")]
-    public async Task<IActionResult> CancelByBuyer(int id, [FromQuery] int buyerId) =>
-        ToResponse(await _orders.CancelByBuyerAsync(id, buyerId));
+    public async Task<IActionResult> CancelByBuyer(int id)
+    {
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+        return ToResponse(await _orders.CancelByBuyerAsync(id, me.Value));
+    }
 
     public record ReviewRequest(int FoodQuality, int Value, int Accuracy, int PickupExperience, string? Comment);
 
-    // POST /api/orders/5/review?buyerId=1 — only ever for a Collected order.
+    // POST /api/orders/5/review — only ever for a Collected order.
     [HttpPost("{id:int}/review")]
-    public async Task<IActionResult> Review(int id, [FromQuery] int buyerId, [FromBody] ReviewRequest request) =>
-        ToResponse(await _orders.LeaveReviewAsync(
-            id, buyerId, request.FoodQuality, request.Value, request.Accuracy, request.PickupExperience, request.Comment ?? ""));
+    public async Task<IActionResult> Review(int id, [FromBody] ReviewRequest request)
+    {
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+        return ToResponse(await _orders.LeaveReviewAsync(
+            id, me.Value, request.FoodQuality, request.Value, request.Accuracy,
+            request.PickupExperience, request.Comment ?? ""));
+    }
 
     // --- Seller-side lifecycle ---
 
     public record AdvanceRequest(OrderStatus Target);
 
-    // POST /api/orders/5/advance?sellerId=2 — Confirmed -> Preparing -> Ready.
+    // POST /api/orders/5/advance — Confirmed -> Preparing -> Ready.
     [HttpPost("{id:int}/advance")]
-    public async Task<IActionResult> Advance(int id, [FromQuery] int sellerId, [FromBody] AdvanceRequest request) =>
-        ToResponse(await _orders.AdvanceStatusAsync(id, sellerId, request.Target));
+    public async Task<IActionResult> Advance(int id, [FromBody] AdvanceRequest request)
+    {
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+        return ToResponse(await _orders.AdvanceStatusAsync(id, me.Value, request.Target));
+    }
 
     public record SellerCancelRequest(string? Reason);
 
-    // POST /api/orders/5/seller-cancel?sellerId=2 — always a full refund.
+    // POST /api/orders/5/seller-cancel — always a full refund.
     [HttpPost("{id:int}/seller-cancel")]
-    public async Task<IActionResult> CancelBySeller(int id, [FromQuery] int sellerId, [FromBody] SellerCancelRequest? request) =>
-        ToResponse(await _orders.CancelBySellerAsync(id, sellerId, request?.Reason ?? ""));
-
-    // POST /api/orders/5/no-show?sellerId=2 — only once the pickup window closed.
-    [HttpPost("{id:int}/no-show")]
-    public async Task<IActionResult> NoShow(int id, [FromQuery] int sellerId) =>
-        ToResponse(await _orders.MarkNoShowAsync(id, sellerId));
-
-    // GET /api/orders/drop/7?sellerId=2 — every order against one batch.
-    [HttpGet("drop/{foodDropId:int}")]
-    public async Task<ActionResult<DropOrderBoard>> DropBoard(int foodDropId, [FromQuery] int sellerId)
+    public async Task<IActionResult> CancelBySeller(int id, [FromBody] SellerCancelRequest? request)
     {
-        var board = await _orders.GetDropBoardAsync(foodDropId, sellerId);
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+        return ToResponse(await _orders.CancelBySellerAsync(id, me.Value, request?.Reason ?? ""));
+    }
+
+    // POST /api/orders/5/no-show — only once the pickup window closed.
+    [HttpPost("{id:int}/no-show")]
+    public async Task<IActionResult> NoShow(int id)
+    {
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+        return ToResponse(await _orders.MarkNoShowAsync(id, me.Value));
+    }
+
+    // GET /api/orders/drop/7 — every order against one of your batches.
+    [HttpGet("drop/{foodDropId:int}")]
+    public async Task<ActionResult<DropOrderBoard>> DropBoard(int foodDropId)
+    {
+        var me = User.AppUserId();
+        if (me is null) return Unauthorized();
+
+        var board = await _orders.GetDropBoardAsync(foodDropId, me.Value);
         return board is null ? NotFound() : board;
     }
 
-    // Forbid() asks the authentication stack to challenge, and this app has no
-    // authentication scheme registered — calling it throws
-    // InvalidOperationException, so every authorization failure surfaced as a
-    // 500 instead of a 403. Return the status code directly instead.
+    // Returns 403 directly rather than calling Forbid(). Forbid() runs the
+    // scheme's challenge, which for cookie auth is a 302 to /login — correct
+    // for a browser, wrong for an API client that wants a status code.
     private IActionResult Denied(string message) => StatusCode(StatusCodes.Status403Forbidden, message);
 
     private IActionResult ToResponse(OrderActionResult result) => result.Success
