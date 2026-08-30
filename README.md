@@ -16,7 +16,7 @@ become a cook, run a kitchen, and sell — and any cook is also a buyer.
 ./run.sh
 ```
 
-Then open http://localhost:5289 and pick a demo account on the sign-in screen — Google
+Then open http://localhost:5238 and pick a demo account on the sign-in screen — Google
 sign-in needs credentials first, see **Signing in** below. On first run it creates
 `Marketplace.Web/marketplace.db`
 (SQLite) and seeds 6 demo cooks across Sydney suburbs (Strathfield, Chatswood, Burwood,
@@ -59,7 +59,7 @@ still work. To turn it on:
 4. Under **Authorised redirect URIs** add exactly:
 
    ```
-   http://localhost:5289/signin-google
+   http://localhost:5238/signin-google
    ```
 
    This must match character for character — scheme, port and path. It is
