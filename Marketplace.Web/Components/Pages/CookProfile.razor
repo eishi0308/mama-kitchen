@@ -109,10 +109,10 @@ else
     }
     else
     {
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3 mb-5">
+        <div class="meal-grid mb-5">
             @foreach (var drop in p.UpcomingDrops)
             {
-                <div class="col">
+                <div>
                     <MealCard Drop="drop" IsFavorite="_favoriteIds.Contains(drop.Id)"
                               ShowFavoriteButton="CurrentUser.CurrentUser is not null && !isMe"
                               OnOpen="GoToDrop" OnToggleFavorite="ToggleFavorite" />

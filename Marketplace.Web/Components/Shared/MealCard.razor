@@ -45,14 +45,14 @@
             <span class="meal-card-price">$@Drop.Price.ToString("0.##")</span>
             <span class="badge-pill badge-info">@Drop.Category?.Icon @Drop.Category?.Name</span>
         </div>
-        <div class="meal-card-title text-truncate">@Drop.Title</div>
+        <div class="meal-card-title">@Drop.Title</div>
         <div class="meal-card-meta">
             <span>@Drop.Seller?.Avatar @Drop.Seller?.Name</span>
             @if (Drop.Seller?.SellerProfile?.RatingAverage is decimal r)
             {
-                <span class="d-inline-flex align-items-center gap-1">· <Icon Name="star" Size="12" Filled="true" Class="star-icon" /> @r.ToString("0.0")</span>
+                <span><span class="meta-sep" aria-hidden="true">·</span> <Icon Name="star" Size="12" Filled="true" Class="star-icon" /> @r.ToString("0.0")</span>
             }
-            <span>· @DistanceLabel()</span>
+            <span><span class="meta-sep" aria-hidden="true">·</span> @DistanceLabel()</span>
         </div>
         <div class="pickup-window mt-1">
             <Icon Name="clock" Size="14" /> Pickup @Drop.PickupWindowStart.ToLocalTime().ToString("h:mm tt")–@Drop.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")

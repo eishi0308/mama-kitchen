@@ -160,13 +160,13 @@ else
                         @foreach (var payout in _earnings.Payouts)
                         {
                             <tr>
-                                <td class="nowrap">@((payout.PaidAt ?? payout.CreatedAt).ToLocalTime().ToString("d MMM yyyy, h:mm tt"))</td>
-                                <td class="nowrap">@payout.Destination</td>
-                                <td>@payout.OrderCount</td>
-                                <td class="num">$@payout.GrossAmount.ToString("0.00")</td>
-                                <td class="num num-fee">−$@payout.FeeAmount.ToString("0.00")</td>
-                                <td class="num num-net">$@payout.Amount.ToString("0.00")</td>
-                                <td><code class="field-hint">@payout.Reference</code></td>
+                                <td data-label="Date" class="nowrap">@((payout.PaidAt ?? payout.CreatedAt).ToLocalTime().ToString("d MMM yyyy, h:mm tt"))</td>
+                                <td data-label="To" class="nowrap">@payout.Destination</td>
+                                <td data-label="Orders">@payout.OrderCount</td>
+                                <td data-label="Gross" class="num">$@payout.GrossAmount.ToString("0.00")</td>
+                                <td data-label="Fee" class="num num-fee">−$@payout.FeeAmount.ToString("0.00")</td>
+                                <td data-label="Paid" class="num num-net">$@payout.Amount.ToString("0.00")</td>
+                                <td data-label="Reference"><code class="field-hint">@payout.Reference</code></td>
                             </tr>
                         }
                     </tbody>
@@ -214,13 +214,15 @@ else
                         @foreach (var row in _earnings.Rows)
                         {
                             <tr>
-                                <td><a href="/kitchen/drops/@row.FoodDropId" class="text-decoration-none">@row.DropTitle</a></td>
-                                <td class="nowrap">@row.BuyerAvatar @row.BuyerName</td>
-                                <td class="nowrap">@row.At.ToLocalTime().ToString("d MMM, h:mm tt")</td>
-                                <td class="num">$@row.Gross.ToString("0.00")</td>
-                                <td class="num num-fee">−$@row.Fee.ToString("0.00")</td>
-                                <td class="num num-net">$@row.Net.ToString("0.00")</td>
-                                <td>
+                                @* data-label feeds the stacked card layout below 640px, where the
+                                   header row is hidden and each cell shows its own column name. *@
+                                <td data-label="Dish" class="row-head"><a href="/kitchen/drops/@row.FoodDropId" class="text-decoration-none">@row.DropTitle</a></td>
+                                <td data-label="Buyer" class="nowrap">@row.BuyerAvatar @row.BuyerName</td>
+                                <td data-label="When" class="nowrap">@row.At.ToLocalTime().ToString("d MMM, h:mm tt")</td>
+                                <td data-label="Paid" class="num">$@row.Gross.ToString("0.00")</td>
+                                <td data-label="Fee" class="num num-fee">−$@row.Fee.ToString("0.00")</td>
+                                <td data-label="You keep" class="num num-net">$@row.Net.ToString("0.00")</td>
+                                <td data-label="Status">
                                     <span class="badge-pill @(row.Settled ? "badge-success" : "badge-info")">
                                         @(row.Settled ? "Paid out" : "In balance")
                                     </span>

@@ -35,14 +35,24 @@
     --font-display: "Fraunces", Georgia, "Times New Roman", serif;
     --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
+    /* Fluid from 360px to 1280px. The display sizes are the ones that used to
+       break narrow screens: 48px of Fraunces in a 320px viewport is roughly six
+       characters a line. clamp() lets them shrink continuously with the
+       viewport instead of holding full size until a breakpoint fires and
+       dropping off a cliff.
+
+       Body sizes stay fixed. 16px is the floor for anything you actually read —
+       scaling it down on a phone is how you end up with 13px body copy on the
+       device held closest to the face, and on iOS a sub-16px input font makes
+       Safari zoom the whole page on focus. */
     --fs-xs: 0.75rem;   /* 12px */
     --fs-sm: 0.875rem;  /* 14px */
     --fs-base: 1rem;    /* 16px — hard minimum for body text */
     --fs-md: 1.125rem;  /* 18px */
-    --fs-lg: 1.375rem;  /* 22px */
-    --fs-xl: 1.75rem;   /* 28px */
-    --fs-2xl: 2.25rem;  /* 36px */
-    --fs-3xl: 3rem;     /* 48px */
+    --fs-lg: clamp(1.25rem, 1.16rem + 0.39vw, 1.375rem);   /* 20 → 22 */
+    --fs-xl: clamp(1.4rem, 1.16rem + 1.09vw, 1.75rem);     /* 22.4 → 28 */
+    --fs-2xl: clamp(1.65rem, 1.18rem + 2.09vw, 2.25rem);   /* 26.4 → 36 */
+    --fs-3xl: clamp(2rem, 1.22rem + 3.48vw, 3rem);         /* 32 → 48 */
 
     /* Spacing (4px base unit) */
     --space-1: 0.25rem;
@@ -218,6 +228,32 @@ textarea:focus-visible,
 }
 
 /* Meal card (grid item) */
+/* Card grids size themselves from the space they are actually given, not from
+   the viewport.
+
+   Bootstrap's row-cols-md-3 asks "is the window at least 768px?" — but the
+   window is not what the cards live in. At 768px the sidebar takes 250px and
+   padding another 56, so three columns were being packed into ~460px: every
+   dish name ellipsised to "Khao Soi (N...", which is the one thing on the card
+   a person is actually reading.
+
+   auto-fill + minmax asks the question that matters — how much room is there? —
+   and drops to two columns or one on its own. The min(100%, …) is what keeps a
+   single column from overflowing below 15rem: without it minmax's floor wins
+   and the track is wider than its own container. */
+.meal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+    gap: var(--space-4);
+}
+
+/* Denser variant for secondary contexts (a cook's other batches, "more like
+   this") where cards are a supporting list rather than the main event. */
+.meal-grid-tight {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr));
+    gap: var(--space-3);
+}
+
 .meal-card {
     display: block;
     background: var(--color-surface);
@@ -255,8 +291,37 @@ textarea:focus-visible,
 
 .meal-card-body { padding: var(--space-4); }
 .meal-card-price { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; }
-.meal-card-title { font-weight: 600; margin-top: 2px; }
-.meal-card-meta { color: var(--color-text-muted); font-size: var(--fs-sm); display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+/* Two lines, then ellipsis — not one. The dish name is the reason someone stops
+   scrolling; "Hyderabadi ..." is not a dish. Two lines fits every seeded title
+   at the narrowest column the grid will ever produce, and min-height keeps the
+   cards in a row aligned whether the title takes one line or two. */
+.meal-card-title {
+    font-weight: 600;
+    margin-top: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.3;
+    min-height: calc(2 * 1.3em);
+}
+/* The separators are inside their spans rather than loose text nodes, so a wrap
+   can't leave a "·" orphaned at the start of a line — which is what the old
+   markup did at every width where the meta didn't fit on one line. */
+.meal-card-meta {
+    color: var(--color-text-muted);
+    font-size: var(--fs-sm);
+    display: flex;
+    align-items: center;
+    gap: 0.15rem 0.4rem;
+    flex-wrap: wrap;
+}
+.meal-card-meta > * { display: inline-flex; align-items: center; gap: 0.2rem; }
+/* aria-hidden in the markup: a screen reader announcing "dot" between every
+   fragment is noise, and the visual separator carries no meaning a listener
+   needs. */
+.meal-card-meta .meta-sep { color: var(--color-text-faint); }
 .meal-card-badges { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; }
 .meal-card-fav {
     position: absolute; top: 10px; right: 10px;
@@ -414,9 +479,15 @@ textarea:focus-visible,
 .fade-in { animation: fade-in var(--duration-standard) var(--ease-standard); }
 @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* Mobile bottom navigation spacing (nav bar itself styled in NavMenu.razor.css) */
+/* Mobile bottom navigation spacing (nav bar itself styled in NavMenu.razor.css)
+   The inset has to be added here too, not just on the bar. The bar's own height
+   grows by safe-area-inset-bottom on a home-indicator iPhone (34px on a 14 Pro),
+   so clearing a flat 4rem left the last half-centimetre of every page sitting
+   underneath it — invisible, and on tappable content, unreachable. */
 @media (max-width: 640.98px) {
-    .content { padding-bottom: calc(var(--bottom-nav-height) + var(--space-4)); }
+    .content {
+        padding-bottom: calc(var(--bottom-nav-height) + var(--space-4) + env(safe-area-inset-bottom, 0px));
+    }
 }
 
 /* =========================================================================
@@ -545,19 +616,34 @@ textarea:focus-visible,
 /* =========================================================================
    SEGMENTED TABS
    ========================================================================= */
+/* max-width + overflow-x, because the labels are data. "Needs a reply 0" plus
+   "Unanswered 20" plus "All 20" is wider than a 320px screen no matter how the
+   padding is tuned, and the counts can only grow. This was the one control in
+   the app that actually forced the page to scroll sideways (/kitchen/reviews at
+   ≤375px). It scrolls itself now instead of pushing the document. */
 .segmented {
     display: inline-flex;
     background: var(--color-surface-alt);
     border-radius: var(--radius-full);
     padding: 4px;
     gap: 2px;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
 }
+.segmented::-webkit-scrollbar { display: none; }
+.segmented button { scroll-snap-align: center; }
 .segmented button {
     border: none;
     background: transparent;
     color: var(--color-text-muted);
     font-size: var(--fs-sm);
     font-weight: 600;
+    /* Don't let flex shrink these: they're nowrap, so shrinking spills the
+       label past its own background pill rather than wrapping it. */
+    flex: 0 0 auto;
     padding: 0.45rem 1rem;
     border-radius: var(--radius-full);
     cursor: pointer;
@@ -737,6 +823,73 @@ textarea:focus-visible,
 .data-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .data-table .num-net { font-weight: 700; }
 .data-table .num-fee { color: var(--color-text-faint); }
+
+/* Below 640px each row becomes its own card, headers moving into the rows as
+   labels (the td carries its column name in data-label).
+
+   The wrapper's overflow-x kept the page from scrolling sideways, but "doesn't
+   overflow" was doing a lot of work there: seven columns in 320px meant dish
+   names broken across three lines and timestamps sheared mid-value ("25 Aug,
+   5:"), with paid/fee/kept — the three numbers the whole page exists to
+   compare — pushed off-screen behind a horizontal scroll nobody discovers.
+   Stacked, every value is visible at once and labelled. */
+@media (max-width: 640.98px) {
+    .data-table-wrap { overflow-x: visible; }
+    .data-table, .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
+    .data-table thead { display: none; }
+
+    .data-table tr {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: var(--space-2) var(--space-3);
+        margin-bottom: var(--space-2);
+        background: var(--color-surface);
+    }
+    .data-table tr:last-child { margin-bottom: 0; }
+
+    .data-table td {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-3);
+        padding: 0.3rem 0;
+        border-bottom: none;
+        text-align: left;
+    }
+    /* Values can be unbreakable strings — a payout reference is 20 characters
+       with no space in it — and the label already has the row's left half.
+
+       min-width on the children is the half that actually does the work: a flex
+       item defaults to min-width:auto, which refuses to shrink below its own
+       content, so the <code> holding the reference pushed the row wider than
+       the screen no matter what overflow-wrap said. */
+    .data-table td { overflow-wrap: anywhere; }
+    .data-table td > * { min-width: 0; }
+    .data-table td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        font-size: var(--fs-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--color-text-faint);
+        font-weight: 700;
+    }
+    /* .num right-aligns against a cell edge that no longer exists once the cell
+       is a flex row; the label/value split does the aligning now. */
+    .data-table td.num { text-align: left; }
+
+    /* Mark one cell .row-head and it becomes the card's title instead of another
+       label/value pair — the dish, for order history. A table with no obvious
+       title cell just renders as labelled pairs, which is correct for one. */
+    .data-table td.row-head {
+        font-weight: 600;
+        font-size: var(--fs-base);
+        padding-bottom: var(--space-2);
+        margin-bottom: var(--space-1);
+        border-bottom: 1px solid var(--color-border);
+    }
+    .data-table td.row-head::before { display: none; }
+}
 
 /* =========================================================================
    ACTIVE ORDER BANNER (buyer, on Discover)

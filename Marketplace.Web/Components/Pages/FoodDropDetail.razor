@@ -342,10 +342,10 @@ else
     @if (_moreFromCook.Count > 0)
     {
         <h2 class="section-heading">More from @_drop.Seller?.Name's kitchen</h2>
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3 mb-4">
+        <div class="meal-grid meal-grid-tight mb-4">
             @foreach (var other in _moreFromCook)
             {
-                <div class="col">
+                <div>
                     <MealCard Drop="other" ShowFavoriteButton="false" OnOpen="GoToDrop" />
                 </div>
             }
@@ -452,7 +452,7 @@ else
         foreach (DietaryLabel value in Enum.GetValues<DietaryLabel>())
         {
             if (value == DietaryLabel.None) continue;
-            if (_drop.Dietary.HasFlag(value)) yield return value.ToString();
+            if (_drop.Dietary.HasFlag(value)) yield return value.DisplayName();
         }
     }
 

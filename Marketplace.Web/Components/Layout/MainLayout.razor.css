@@ -58,9 +58,16 @@ main {
         /* flex-shrink: 0, not the default 1. The declared 250px was only ever a
            suggestion: the content column pushed back and the sidebar was
            actually rendering at 185px, which is why its controls looked cramped
-           and the user picker clipped its own longest option. */
-        flex: 0 0 250px;
-        width: 250px;
+           and the user picker clipped its own longest option.
+
+           The width interpolates rather than sitting at 250px everywhere. On a
+           768px tablet a fixed 250px is a third of the screen spent on six nav
+           links, and the content column pays for it — that was half the reason
+           the card grid had no room. 210px at the narrow end, back to 250px by
+           1100px where the space is free. */
+        --sidebar-w: clamp(13.125rem, 8.5rem + 9.6vw, 15.625rem);
+        flex: 0 0 var(--sidebar-w);
+        width: var(--sidebar-w);
         height: 100vh;
         position: sticky;
         top: 0;
@@ -78,9 +85,12 @@ main {
         width: 0;
     }
 
+    /* Fluid gutters. A flat 2rem/1.5rem is 56px of padding taken out of a 641px
+       screen's content column at the exact width where it can least afford it,
+       and the same 56px looks mean at 1600px. */
     .top-row, article {
-        padding-left: 2rem !important;
-        padding-right: 1.5rem !important;
+        padding-left: clamp(1rem, 0.3rem + 1.75vw, 2rem) !important;
+        padding-right: clamp(1rem, 0.48rem + 1.3vw, 1.5rem) !important;
     }
 }
 

@@ -206,7 +206,7 @@
     gap: 1px;
     /* Comfortably past the 44px touch-target floor on every screen. */
     min-height: 86px;
-    padding: 0.7rem 0.35rem;
+    padding: 0.7rem 0.25rem;
     border: none;
     border-radius: var(--radius-sm);
     background: transparent;
@@ -258,12 +258,18 @@
 }
 
 /* The half that answers "and what happens if I tap this?" — the old pill
-   said only "Cook", which is a place, not an outcome. */
+   said only "Cook", which is a place, not an outcome.
+
+   nowrap and a fluid size because this sits in two ~90px columns once the
+   sidebar narrows on a tablet, and "Order nearby" breaking to "Order / nearby"
+   turns a subtitle into a second heading — it competes with the label above it
+   instead of supporting it. */
 .mode-option-sub {
-    font-size: 0.6875rem;
+    font-size: clamp(0.625rem, 0.55rem + 0.18vw, 0.6875rem);
     font-weight: 500;
     line-height: 1.25;
     opacity: 0.78;
+    white-space: nowrap;
 }
 
 .mode-option-badge {

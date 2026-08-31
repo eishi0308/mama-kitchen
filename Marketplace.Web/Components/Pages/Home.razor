@@ -74,10 +74,10 @@
 
 @if (_drops is null)
 {
-    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+    <div class="meal-grid">
         @for (var i = 0; i < 8; i++)
         {
-            <div class="col">
+            <div>
                 <div class="skeleton" style="height:168px;"></div>
                 <div class="skeleton mt-2" style="height:16px; width:60%;"></div>
                 <div class="skeleton mt-2" style="height:14px; width:40%;"></div>
@@ -101,10 +101,10 @@ else
     @foreach (var bucket in Buckets())
     {
         <h2 class="section-heading">@bucket.Label</h2>
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3 mb-2">
+        <div class="meal-grid mb-2">
             @foreach (var drop in bucket.Drops)
             {
-                <div class="col">
+                <div>
                     <MealCard Drop="drop" IsFavorite="_favoriteIds.Contains(drop.Id)"
                               ShowFavoriteButton="CurrentUser.CurrentUser is not null"
                               OnOpen="GoToDrop" OnToggleFavorite="ToggleFavorite" />

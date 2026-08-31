@@ -11,10 +11,10 @@
 
 @if (_drops is null)
 {
-    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+    <div class="meal-grid">
         @for (var i = 0; i < 4; i++)
         {
-            <div class="col"><div class="skeleton" style="height:168px;"></div></div>
+            <div><div class="skeleton" style="height:168px;"></div></div>
         }
     </div>
 }
@@ -29,10 +29,10 @@ else if (_drops.Count == 0)
 }
 else
 {
-    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+    <div class="meal-grid">
         @foreach (var d in _drops)
         {
-            <div class="col">
+            <div>
                 <MealCard Drop="d" IsFavorite="true" OnOpen="GoToDrop" OnToggleFavorite="ToggleFavorite" />
             </div>
         }

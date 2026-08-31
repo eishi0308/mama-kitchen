@@ -79,3 +79,19 @@ public enum DietaryLabel
     DairyFree = 16,
     HighProtein = 32,
 }
+
+public static class DietaryLabelExtensions
+{
+    /// The enum name is a C# identifier, and two of them read as one when shown
+    /// to a person: a buyer scanning a dish saw a badge saying "GlutenFree".
+    /// Both the post form and the food drop page were rendering .ToString()
+    /// straight into the page, so the spelling is fixed here rather than in
+    /// either of them.
+    public static string DisplayName(this DietaryLabel value) => value switch
+    {
+        DietaryLabel.GlutenFree => "Gluten free",
+        DietaryLabel.DairyFree => "Dairy free",
+        DietaryLabel.HighProtein => "High protein",
+        _ => value.ToString(),
+    };
+}
