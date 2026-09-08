@@ -37,7 +37,7 @@ else
                 }
                 else
                 {
-                    <span style="font-size:7rem;">@_drop.ImageEmoji</span>
+                    <span class="food-hero-emoji">@_drop.ImageEmoji</span>
                 }
             </div>
 
@@ -281,7 +281,12 @@ else
                 }
 
                 <div class="btn-sticky-cta d-flex gap-2">
-                    <button class="btn btn-outline-warning d-flex align-items-center justify-content-center" style="min-width:44px;" @onclick="ToggleFavorite" title="Save">
+                    @* Neutral, not btn-outline-warning: an amber ring next to the
+                       reserve button read as a warning about the order rather
+                       than as "save this for later". *@
+                    <button class="btn btn-save @(_isFavorite ? "is-saved" : "")" @onclick="ToggleFavorite"
+                            title="@(_isFavorite ? "Remove from saved" : "Save")"
+                            aria-pressed="@_isFavorite" aria-label="@(_isFavorite ? "Remove from saved" : "Save")">
                         <Icon Name="heart" Size="18" Filled="_isFavorite" />
                     </button>
                     <button class="btn btn-primary flex-grow-1" style="font-size:var(--fs-md);" disabled="@(closed || soldOut || finished)" @onclick="GoToCheckout">
@@ -357,15 +362,27 @@ else
 }
 
 <style>
+    /* Ratio, not a fixed height: at 320px tall the frame kept its size while
+       the column beside it changed width, so the emoji sat in an ever-changing
+       amount of empty beige. The dish also has to fill its frame — a 3rem glyph
+       centred in a 320px box reads as a missing image, not as the product. */
     .food-hero {
-        height: 320px;
-        background: linear-gradient(135deg, var(--color-surface-alt), #EFE3D3);
+        aspect-ratio: 3 / 2;
+        background:
+            radial-gradient(115% 85% at 50% 8%, rgba(255, 255, 255, 0.92), transparent 62%),
+            linear-gradient(158deg, var(--n-100) 0%, #EFE6DA 55%, #EADFD0 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
     }
     .food-hero img { width: 100%; height: 100%; object-fit: cover; }
+    .food-hero-emoji {
+        font-size: clamp(5rem, 32cqi, 10rem);
+        line-height: 1;
+        filter: drop-shadow(0 14px 26px rgba(26, 21, 18, 0.18));
+    }
+    .food-hero { container-type: inline-size; }
     .seller-card { transition: box-shadow var(--duration-standard) var(--ease-standard); }
     .seller-card:hover { box-shadow: var(--shadow-md); }
 </style>

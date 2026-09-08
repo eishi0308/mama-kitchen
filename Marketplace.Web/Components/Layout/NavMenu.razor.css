@@ -1,60 +1,69 @@
+/* =========================================================================
+   NAVIGATION
+   The sidebar is light now (see MainLayout.razor.css), so everything in here
+   is drawn in ink on warm white rather than white on brown. Contrast comes
+   from weight and a tinted active pill, not from a slab of dark colour.
+   ========================================================================= */
+
 .navbar-toggler {
     appearance: none;
     cursor: pointer;
-    width: 3.5rem;
+    width: 2.75rem;
     height: 2.5rem;
-    color: white;
     position: absolute;
     top: 0.5rem;
-    right: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem rgba(255, 255, 255, 0.1);
+    right: 0.85rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2874, 68, 61, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 8h22M4 15h22M4 22h22'/%3e%3c/svg%3e") no-repeat center/1.5rem var(--color-surface);
+    transition: background-color var(--duration-micro) var(--ease-standard);
 }
 
 .navbar-toggler:checked {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: var(--color-surface-alt);
 }
 
 .top-row {
     min-height: 3.5rem;
-    background-color: rgba(0, 0, 0, 0.15);
+    background-color: var(--color-surface);
 }
 
 .navbar-brand {
     font-family: var(--font-display);
     font-size: 1.2rem;
     font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--color-text);
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
 }
 
+.navbar-brand:hover { color: var(--color-text); }
+
 .brand-mark {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
+    width: 11px;
+    height: 11px;
+    border-radius: 3.5px;
     background: var(--color-primary);
+    box-shadow: 0 1px 3px rgba(192, 69, 28, 0.4);
     flex: 0 0 auto;
 }
 
-.current-user-chip {
-    color: #fff;
-    font-weight: 500;
-}
-
 .demo-note {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--color-text-faint);
     font-size: var(--fs-xs);
+    margin-top: 0.4rem;
+    text-align: center;
 }
 
 .nav-item {
-    font-size: 0.9rem;
-    padding-bottom: 0.35rem;
+    font-size: var(--fs-sm);
+    padding-bottom: 2px;
 }
 
     .nav-item:first-of-type {
-        padding-top: 1rem;
+        padding-top: 0.5rem;
     }
 
     .nav-item:last-of-type {
@@ -63,42 +72,59 @@
 
     .nav-item-divider {
         margin-top: 0.5rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        padding-top: 0.6rem;
+        border-top: 1px solid var(--color-hairline);
     }
 
     .nav-item ::deep .nav-link {
-        color: rgba(255, 255, 255, 0.82);
+        color: var(--color-text-muted);
         background: none;
         border: none;
-        border-radius: var(--radius-md);
-        height: 2.9rem;
+        border-radius: var(--radius-sm);
+        height: 2.5rem;
+        padding: 0 0.7rem;
         display: flex;
         align-items: center;
         gap: 0.65rem;
-        line-height: 2.9rem;
+        line-height: 1;
+        font-weight: 550;
+        letter-spacing: -0.008em;
         width: 100%;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        transition: background var(--duration-micro) var(--ease-standard), color var(--duration-micro) var(--ease-standard);
+        transition: background var(--duration-micro) var(--ease-standard),
+                    color var(--duration-micro) var(--ease-standard);
     }
 
     .nav-item ::deep .nav-icon {
         flex: 0 0 auto;
-        opacity: 0.9;
+        color: var(--color-text-faint);
+        transition: color var(--duration-micro) var(--ease-standard);
     }
 
 .nav-item ::deep a.active {
-    background-color: rgba(255, 255, 255, 0.16);
-    color: white;
-    font-weight: 600;
+    background-color: var(--color-primary-tint);
+    color: var(--color-primary-dark);
+    font-weight: 650;
+}
+
+.nav-item ::deep a.active .nav-icon {
+    color: var(--color-primary);
 }
 
 .nav-item ::deep .nav-link:hover {
-    background-color: rgba(255, 255, 255, 0.09);
-    color: white;
+    background-color: var(--color-surface-alt);
+    color: var(--color-text);
 }
+
+.nav-item ::deep a.active:hover {
+    background-color: var(--color-primary-tint);
+    color: var(--color-primary-dark);
+}
+
+.nav-item ::deep .nav-link:hover .nav-icon { color: var(--color-text-muted); }
+.nav-item ::deep a.active:hover .nav-icon { color: var(--color-primary); }
 
 .nav-scrollable {
     display: none;
@@ -121,9 +147,10 @@
         z-index: 20;
         height: var(--bottom-nav-height);
         padding-bottom: env(safe-area-inset-bottom, 0px);
-        background: var(--color-surface);
+        background: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(20px) saturate(1.8);
+        -webkit-backdrop-filter: blur(20px) saturate(1.8);
         border-top: 1px solid var(--color-border);
-        box-shadow: 0 -4px 16px rgba(43, 33, 27, 0.08);
     }
 
     /* ::deep throughout. These rules target <NavLink> and <Icon>, which are
@@ -137,10 +164,11 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 2px;
-        color: var(--color-text-muted);
-        font-size: var(--fs-xs);
+        gap: 3px;
+        color: var(--color-text-faint);
+        font-size: 0.6875rem;
         font-weight: 600;
+        letter-spacing: -0.005em;
         text-decoration: none;
         min-width: 44px;
         min-height: 44px;
@@ -156,7 +184,7 @@
     }
 
     .bottom-nav ::deep .bottom-nav-link.active {
-        color: var(--color-primary);
+        color: var(--color-text);
     }
 
     .bottom-nav ::deep .bottom-nav-cta,
@@ -177,23 +205,27 @@
         /* Allow sidebar to scroll for tall menus */
         height: calc(100vh - 3.5rem);
         overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border-strong) transparent;
     }
 }
 
 /* =========================================================================
    THE TWO-WORLD SWITCH (Eat / Cook)
    The one control the whole product hangs off, so it is sized and weighted
-   like it: two large cards, each naming its world *and* what you do there,
-   with an unmissable filled state for the side you're currently on. It used
-   to be a 13px segmented pill — legible, but it read as a minor preference
-   toggle rather than the door between two halves of a marketplace.
+   like it: two cards, each naming its world *and* what you do there, with an
+   unmissable filled state for the side you're currently on.
+
+   On a light sidebar the old treatment inverts: the track is the sunken
+   surface and the selected card is the raised white one, which is the same
+   figure/ground relationship the dark version had, read the other way up.
    ========================================================================= */
 .mode-switch {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    padding: 6px;
-    background: rgba(0, 0, 0, 0.22);
+    gap: 4px;
+    padding: 4px;
+    background: var(--color-surface-alt);
     border-radius: var(--radius-md);
 }
 
@@ -205,22 +237,23 @@
     justify-content: center;
     gap: 1px;
     /* Comfortably past the 44px touch-target floor on every screen. */
-    min-height: 86px;
+    min-height: 82px;
     padding: 0.7rem 0.25rem;
     border: none;
     border-radius: var(--radius-sm);
     background: transparent;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--color-text-muted);
     text-align: center;
     cursor: pointer;
     transition: background var(--duration-micro) var(--ease-standard),
                 color var(--duration-micro) var(--ease-standard),
+                box-shadow var(--duration-micro) var(--ease-standard),
                 transform var(--duration-micro) var(--ease-standard);
 }
 
 .mode-option:hover {
-    background: rgba(255, 255, 255, 0.10);
-    color: #fff;
+    background: rgba(255, 255, 255, 0.6);
+    color: var(--color-text);
 }
 
 .mode-option:active {
@@ -228,33 +261,31 @@
 }
 
 .mode-option:focus-visible {
-    outline: 2px solid #fff;
+    outline: 2px solid var(--color-focus-ring);
     outline-offset: 2px;
 }
 
-/* Solid white against a dark sidebar: the highest-contrast pairing available
-   here, so "which side am I on" is answerable from across the room. */
 .mode-option.active {
-    background: #fff;
+    background: var(--color-surface);
     color: var(--color-text);
     box-shadow: var(--shadow-sm);
 }
 
 .mode-option ::deep .mode-option-icon {
-    opacity: 0.92;
-    margin-bottom: 2px;
+    color: var(--color-text-faint);
+    margin-bottom: 3px;
+    transition: color var(--duration-micro) var(--ease-standard);
 }
 
 .mode-option.active ::deep .mode-option-icon {
     color: var(--color-primary);
-    opacity: 1;
 }
 
 .mode-option-label {
-    font-size: var(--fs-base);
+    font-size: var(--fs-sm);
     font-weight: 700;
     line-height: 1.2;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
 }
 
 /* The half that answers "and what happens if I tap this?" — the old pill
@@ -268,9 +299,13 @@
     font-size: clamp(0.625rem, 0.55rem + 0.18vw, 0.6875rem);
     font-weight: 500;
     line-height: 1.25;
-    opacity: 0.78;
+    /* Muted, not faint: the inactive card's ground is the switch track
+       (surface-alt), where the faint step only reaches 4.2:1. */
+    color: var(--color-text-muted);
     white-space: nowrap;
 }
+
+.mode-option.active .mode-option-sub { color: var(--color-text-muted); }
 
 .mode-option-badge {
     position: absolute;
@@ -283,7 +318,7 @@
     display: none;
     gap: 2px;
     padding: 3px;
-    background: rgba(0, 0, 0, 0.25);
+    background: var(--color-surface-alt);
     border-radius: var(--radius-full);
 }
 
@@ -292,26 +327,28 @@
     align-items: center;
     justify-content: center;
     gap: 0.3rem;
-    min-height: 34px;
-    padding: 0.3rem 0.75rem;
+    min-height: 32px;
+    padding: 0.3rem 0.7rem;
     border: none;
     border-radius: var(--radius-full);
     background: transparent;
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--color-text-muted);
     font-size: 0.8125rem;
-    font-weight: 700;
+    font-weight: 650;
+    letter-spacing: -0.01em;
     cursor: pointer;
     transition: background var(--duration-micro) var(--ease-standard),
                 color var(--duration-micro) var(--ease-standard);
 }
 
 .mode-switch-compact button.active {
-    background: #fff;
+    background: var(--color-surface);
     color: var(--color-text);
+    box-shadow: var(--shadow-xs);
 }
 
 .mode-switch-compact button:focus-visible {
-    outline: 2px solid #fff;
+    outline: 2px solid var(--color-focus-ring);
     outline-offset: 2px;
 }
 
@@ -324,14 +361,14 @@
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        padding-right: 4.25rem;
+        padding-right: 3.85rem;
     }
 }
 
 /* Count badge on a nav item — the cook's "you have things to do" signal */
 .nav-badge {
-    min-width: 20px;
-    height: 20px;
+    min-width: 19px;
+    height: 19px;
     padding: 0 6px;
     border-radius: var(--radius-full);
     background: var(--color-primary);
@@ -348,7 +385,7 @@
 /* The account block. Quiet on purpose — it says who you are and how to leave,
    and nothing else competes with the Eat/Cook switch below it. */
 .current-user-avatar {
-    font-size: 1.4rem;
+    font-size: 1.35rem;
     line-height: 1;
 }
 
@@ -357,7 +394,8 @@
     align-items: center;
     gap: 0.55rem;
     min-width: 0;
-    color: #fff;
+    color: var(--color-text);
+    padding: 0.15rem 0;
 }
 
 .account-photo {
@@ -366,62 +404,67 @@
     border-radius: 50%;
     flex: 0 0 auto;
     object-fit: cover;
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--color-surface-alt);
 }
 
 .account-identity {
     display: flex;
     flex-direction: column;
     min-width: 0;
-    line-height: 1.25;
+    line-height: 1.3;
 }
 
 .account-name {
-    font-weight: 600;
+    font-weight: 650;
     font-size: var(--fs-sm);
+    letter-spacing: -0.01em;
 }
 
 .account-email {
     font-size: 0.6875rem;
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--color-text-faint);
 }
 
 /* Says out loud that this isn't a real account, so nobody wonders why their
    Google profile is showing someone else's kitchen. */
 .account-demo-tag {
     align-self: flex-start;
-    margin-top: 2px;
+    margin-top: 3px;
     padding: 0.05rem 0.4rem;
     border-radius: var(--radius-full);
-    background: rgba(255, 255, 255, 0.16);
-    color: rgba(255, 255, 255, 0.9);
+    background: var(--color-surface-alt);
+    color: var(--color-text-muted);
     font-size: 0.5875rem;
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
-.account-actions { margin: 0.4rem 0 0; }
+.account-actions { margin: 0.5rem 0 0; }
 
 .account-link {
     padding: 0;
     border: none;
     background: none;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--color-text-faint);
     font-size: var(--fs-xs);
+    font-weight: 500;
     text-decoration: underline;
+    text-underline-offset: 0.2em;
     cursor: pointer;
+    transition: color var(--duration-micro) var(--ease-standard);
 }
 
-.account-link:hover { color: #fff; }
+.account-link:hover { color: var(--color-text); }
 
-.account-switch { margin-top: 0.65rem; }
+.account-switch { margin-top: 0.7rem; }
 
 .account-switch-label {
     display: block;
-    margin-bottom: 0.25rem;
-    color: rgba(255, 255, 255, 0.55);
+    margin-bottom: 0.3rem;
+    color: var(--color-text-faint);
     font-size: 0.6875rem;
+    font-weight: 500;
 }
 
 .account-signin {
@@ -429,18 +472,20 @@
     align-items: center;
     gap: 0.45rem;
     width: 100%;
-    min-height: 40px;
+    min-height: 42px;
     justify-content: center;
     padding: 0.5rem 0.75rem;
     border-radius: var(--radius-sm);
-    background: #fff;
-    color: var(--color-text);
+    background: var(--color-primary);
+    color: #fff;
     font-size: var(--fs-sm);
-    font-weight: 600;
+    font-weight: 650;
     text-decoration: none;
+    box-shadow: 0 1px 2px rgba(158, 55, 20, 0.24);
+    transition: background var(--duration-micro) var(--ease-standard);
 }
 
-.account-signin:hover { background: #F3ECE3; color: var(--color-text); }
+.account-signin:hover { background: var(--color-primary-dark); color: #fff; }
 
 .nav-scrollable .form-select {
     padding-right: 2.25rem;

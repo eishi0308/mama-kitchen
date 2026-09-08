@@ -22,9 +22,9 @@
     </a>
 }
 
-<div class="mb-4">
-    <h1 style="font-size:var(--fs-2xl); margin-bottom:0.15em;">What can you eat near you tonight?</h1>
-    <p class="text-muted" style="font-size:var(--fs-md);">Homemade meals from home cooks nearby — pickup only, no delivery markup.</p>
+<div class="page-intro">
+    <h1>What can you eat near you tonight?</h1>
+    <p>Homemade meals from home cooks nearby — pickup only, no delivery markup.</p>
 </div>
 
 @* A first-time visitor has no idea this is pickup-only, code-based, or that
@@ -32,9 +32,9 @@
    they've got the idea. *@
 @if (_showHowItWorks)
 {
-    <div class="surface-card p-4 mb-4">
-        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-            <strong style="font-size:var(--fs-sm);">How Batch works</strong>
+    <div class="hiw-panel mb-4">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+            <span class="hiw-panel-head">How Batch works</span>
             <button class="btn btn-sm btn-link p-0 text-muted" @onclick="() => _showHowItWorks = false">Hide</button>
         </div>
         <div class="hiw-strip">
@@ -51,16 +51,17 @@
                 <span class="hiw-chip-text"><strong>Collect with a code</strong><span>Pick it up from their door — no delivery</span></span>
             </div>
         </div>
-        <a class="btn btn-sm btn-outline-secondary mt-3" href="/how-it-works">See the full journey, both sides</a>
+        <a class="btn btn-sm btn-link px-0 mt-3" href="/how-it-works">See the full journey, both sides →</a>
     </div>
 }
 
-<div class="mb-3">
-    <input class="form-control form-control-lg" style="border-radius:var(--radius-md); max-width:480px;"
+<div class="search-field mb-3">
+    <Icon Name="magnifying-glass" Size="18" />
+    <input class="form-control" type="search" aria-label="Search dishes, cuisines or cooks"
            placeholder="Search dish, cuisine or cook…" @bind="_query" @bind:event="oninput" @bind:after="ApplyFilters" />
 </div>
 
-<div class="chip-row mb-3">
+<div class="chip-row mb-4">
     <button class="chip @(IsChipActive(FilterChip.All) ? "active" : "")" @onclick="() => SetChip(FilterChip.All)">All</button>
     <button class="chip @(IsChipActive(FilterChip.UnderFifteen) ? "active" : "")" @onclick="() => SetChip(FilterChip.UnderFifteen)">Under $15</button>
     <button class="chip @(IsChipActive(FilterChip.ReadySoon) ? "active" : "")" @onclick="() => SetChip(FilterChip.ReadySoon)">Ready soon</button>

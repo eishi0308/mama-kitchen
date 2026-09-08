@@ -45,13 +45,13 @@ else
         <hr />
 
         <div class="mb-3">
-            <div class="text-muted small mb-1">PICKUP</div>
+            <span class="micro-label">Pickup</span>
             <div>@PickupDayLabel() · @_drop.PickupWindowStart.ToLocalTime().ToString("h:mm tt")–@_drop.PickupWindowEnd.ToLocalTime().ToString("h:mm tt")</div>
             <div class="text-muted">@_drop.PickupLocation?.Suburb</div>
         </div>
 
         <div class="mb-3">
-            <div class="text-muted small mb-1">PAYMENT METHOD</div>
+            <span class="micro-label">Payment method</span>
             <div class="d-flex gap-2">
                 @foreach (var method in new[] { "Card", "Apple Pay", "Google Pay" })
                 {
@@ -93,8 +93,8 @@ else
             }
         </button>
 
-        <p class="text-muted small text-center mt-2 mb-0 d-flex align-items-center justify-content-center gap-1">
-            <Icon Name="lock" Size="14" /> Payment protected — held securely until your order is fulfilled.
+        <p class="text-muted small text-center mt-2 mb-0">
+            <Icon Name="lock" Size="14" Class="inline-icon" /> Payment protected — held securely until your order is fulfilled.
         </p>
 
         @* Set expectations before the money moves, not after. Everything here

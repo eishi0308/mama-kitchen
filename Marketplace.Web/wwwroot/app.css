@@ -3,33 +3,66 @@
    Warm, food-and-neighbourhood palette — deliberately not the default
    purple-SaaS look. Terracotta for action/appetite, sage for trust/verified,
    warm cream surfaces instead of clinical white/grey.
+
+   The neutrals are a proper ramp now, not four ad-hoc browns. Every surface,
+   line and label picks from the same twelve steps, which is what stops a
+   screen with a card on a panel on a page from reading as three unrelated
+   shades of beige. Hue is constant (~30°); only lightness moves.
    ========================================================================= */
 :root {
+    /* Warm neutral ramp — the whole greyscale of the product */
+    --n-0:  #FFFFFF;
+    --n-25: #FCFAF7;
+    --n-50: #F8F5F0;
+    --n-100:#F2EDE6;
+    --n-150:#EAE3DA;
+    --n-200:#E0D8CC;
+    --n-300:#CFC5B7;
+    --n-400:#AEA398;
+    /* n-500 is the "faint" text step, so it is set by contrast rather than by
+       eye: at the old #9C8F82 the field hints, table headers and micro-labels
+       drawn in it sat at 2.95:1 on the page background — under WCAG AA for
+       normal text, and under AA-large as well. This clears 4.5:1 on the page
+       background, on white and on n-50, which is every surface it lands on;
+       anything tinted more strongly than n-50 uses n-600 instead. */
+    --n-500:#7A6F66;
+    --n-600:#6B6158;
+    --n-700:#4C443D;
+    --n-800:#2E2823;
+    --n-900:#1A1512;
+
     /* Colour */
-    --color-bg: #FBF7F2;
-    --color-surface: #FFFFFF;
-    --color-surface-alt: #F3ECE3;
-    --color-text: #2B211B;
-    --color-text-muted: #6B5D52;
-    --color-text-faint: #9C8F82;
-    --color-border: #E7DDD0;
-    --color-border-strong: #D8CAB8;
+    --color-bg: var(--n-25);
+    --color-surface: var(--n-0);
+    --color-surface-alt: var(--n-100);
+    --color-surface-sunken: var(--n-50);
+    --color-text: var(--n-900);
+    --color-text-muted: var(--n-600);
+    --color-text-faint: var(--n-500);
+    --color-border: var(--n-150);
+    --color-border-strong: var(--n-300);
 
-    --color-primary: #C7511F;
-    --color-primary-dark: #A8431A;
-    --color-primary-tint: #FBE7DC;
+    /* Hairline for dividers that should be felt, not seen. A full-strength
+       border on every card edge is what made the old surfaces read as boxes
+       drawn on a page rather than planes lifted off it. */
+    --color-hairline: var(--n-100);
 
-    --color-accent: #4B6B4F;
-    --color-accent-tint: #E4EDE2;
+    --color-primary: #C0451C;
+    --color-primary-dark: #9E3714;
+    --color-primary-soft: #F5D9CB;
+    --color-primary-tint: #FBEAE1;
 
-    --color-success: #2E7D4F;
-    --color-success-tint: #E3F1E7;
-    --color-warning: #A8690B;
-    --color-warning-tint: #FBEFD9;
-    --color-danger: #B23A2E;
-    --color-danger-tint: #FBE6E3;
+    --color-accent: #46654A;
+    --color-accent-tint: #E5EDE3;
 
-    --color-focus-ring: #2E7D4F;
+    --color-success: #2C7048;
+    --color-success-tint: #E4F0E8;
+    --color-warning: #9A6009;
+    --color-warning-tint: #FAEFD8;
+    --color-danger: #AF3527;
+    --color-danger-tint: #FBE7E4;
+
+    --color-focus-ring: #2C7048;
 
     /* Typography */
     --font-display: "Fraunces", Georgia, "Times New Roman", serif;
@@ -48,11 +81,18 @@
     --fs-xs: 0.75rem;   /* 12px */
     --fs-sm: 0.875rem;  /* 14px */
     --fs-base: 1rem;    /* 16px — hard minimum for body text */
-    --fs-md: 1.125rem;  /* 18px */
-    --fs-lg: clamp(1.25rem, 1.16rem + 0.39vw, 1.375rem);   /* 20 → 22 */
-    --fs-xl: clamp(1.4rem, 1.16rem + 1.09vw, 1.75rem);     /* 22.4 → 28 */
-    --fs-2xl: clamp(1.65rem, 1.18rem + 2.09vw, 2.25rem);   /* 26.4 → 36 */
-    --fs-3xl: clamp(2rem, 1.22rem + 3.48vw, 3rem);         /* 32 → 48 */
+    --fs-md: 1.0625rem; /* 17px */
+    --fs-lg: 1.1875rem; /* 19px */
+    --fs-xl: clamp(1.375rem, 1.27rem + 0.44vw, 1.5rem);    /* 22 → 24 */
+    --fs-2xl: clamp(1.625rem, 1.36rem + 1.09vw, 2rem);     /* 26 → 32 */
+    --fs-3xl: clamp(2rem, 1.65rem + 1.52vw, 2.5rem);       /* 32 → 40 */
+
+    /* The display sizes came down hard. 48px of Fraunces over 16px of Inter is
+       a 3:1 jump with nothing in between — it reads as a magazine spread, and
+       every heading below it collapses into one undifferentiated rank. A 2:1
+       top end leaves room for the two steps the product actually needs
+       (page title → section → row title) and lets weight and colour carry the
+       rest of the hierarchy. */
 
     /* Spacing (4px base unit) */
     --space-1: 0.25rem;
@@ -65,24 +105,30 @@
     --space-10: 4rem;
 
     /* Radii */
-    --radius-sm: 8px;
+    --radius-xs: 6px;
+    --radius-sm: 10px;
     --radius-md: 12px;
-    --radius-lg: 20px;
+    --radius-lg: 16px;
+    --radius-xl: 22px;
     --radius-full: 999px;
 
-    /* Shadows — warm-tinted, not neutral grey */
-    --shadow-sm: 0 1px 2px rgba(43, 33, 27, 0.07);
-    --shadow-md: 0 6px 16px rgba(43, 33, 27, 0.09);
-    --shadow-lg: 0 16px 40px rgba(43, 33, 27, 0.14);
+    /* Shadows — warm-tinted, and layered rather than single-cast. One blurred
+       drop shadow makes an element look pasted on; a tight contact shadow plus
+       a wide ambient one is how a real object sits on a surface. */
+    --shadow-xs: 0 1px 2px rgba(26, 21, 18, 0.04);
+    --shadow-sm: 0 1px 2px rgba(26, 21, 18, 0.04), 0 1px 3px rgba(26, 21, 18, 0.03);
+    --shadow-md: 0 2px 4px rgba(26, 21, 18, 0.04), 0 8px 20px -4px rgba(26, 21, 18, 0.08);
+    --shadow-lg: 0 4px 8px rgba(26, 21, 18, 0.05), 0 20px 44px -8px rgba(26, 21, 18, 0.13);
 
     /* Motion */
-    --duration-micro: 150ms;
-    --duration-standard: 240ms;
+    --duration-micro: 130ms;
+    --duration-standard: 220ms;
     --duration-complex: 380ms;
-    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    --bottom-nav-height: 4rem;
+    --bottom-nav-height: 4.25rem;
+    --content-max: 1180px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -104,22 +150,85 @@ html, body {
     font-size: var(--fs-base);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Inter ships its punctuation and figures in several flavours; without
+       these it defaults to the ones drawn for print. cv11 gives the single-
+       storey 'a'-free lining figures a straighter tail, ss01 the humanist
+       digits — the pair is what makes prices and times read as a UI rather
+       than as body copy. */
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
 }
 
 h1, h2, h3, h4 {
     font-family: var(--font-display);
     color: var(--color-text);
     font-weight: 600;
-    letter-spacing: -0.01em;
+    /* Optical tracking: display type at 32px needs to be pulled tighter than
+       the same face at 19px, or the large sizes look gappy and the small ones
+       cramped. */
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    text-wrap: balance;
 }
+
+h3, h4 { letter-spacing: -0.01em; }
+
+p { text-wrap: pretty; }
+
+/* Details the eye never names but always registers: a selection colour drawn
+   from the palette rather than the OS default blue, and scrollbars that don't
+   punch a grey Windows-95 gutter through a warm layout. */
+::selection {
+    background: var(--color-primary-tint);
+    color: var(--color-primary-dark);
+}
+
+* { scrollbar-width: thin; scrollbar-color: var(--n-300) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: var(--n-300);
+    border-radius: var(--radius-full);
+    border: 3px solid transparent;
+    background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--n-400); background-clip: content-box; }
+
+img { max-width: 100%; }
+
+/* Bootstrap ships <code> in a hot magenta (#d63384) that belongs to no palette
+   in this app. Inline code appears in the payment-mock notice and the sign-in
+   config warning, and in both places it should read as a quiet monospace
+   fragment, not as an error. */
+code, .field-hint code, code.field-hint {
+    color: var(--color-text);
+    background: var(--color-surface-alt);
+    padding: 0.1em 0.36em;
+    border-radius: var(--radius-xs);
+    font-size: 0.875em;
+}
+
+/* Bootstrap's mark/hr/small defaults, aligned to the ramp. */
+hr { border-color: var(--color-border); opacity: 1; }
+small { color: var(--color-text-muted); }
 
 a, .btn-link {
     color: var(--color-primary);
+    text-underline-offset: 0.2em;
 }
 
 .text-muted { color: var(--color-text-muted) !important; }
 
-.content { padding-top: var(--space-4); }
+/* The reading column. Content that runs the full width of a 27" display is
+   not a layout, it's an absence of one — and the meal grid was producing
+   seven-across rows of thumbnails at that width. Centred rather than
+   left-locked, so the whitespace at the wide end sits on both sides. */
+.content {
+    padding-top: var(--space-5);
+    max-width: var(--content-max);
+    margin-inline: auto;
+}
 
 h1:focus { outline: none; }
 
@@ -134,8 +243,17 @@ textarea:focus-visible,
     outline-offset: 2px;
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+/* .form-select and .form-check-input were missing from this list, so both were
+   still firing Bootstrap's default blue focus glow (rgba(13,110,253,.25)) —
+   the one colour in the app that belongs to no part of the palette. */
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus,
+.form-control:focus, .form-select:focus, .form-check-input:focus {
     box-shadow: 0 0 0 0.2rem var(--color-success-tint);
+}
+
+.form-check-input:checked {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
 }
 
 .valid.modified:not([type=checkbox]) { outline: 1px solid var(--color-success); }
@@ -165,31 +283,104 @@ textarea:focus-visible,
 
 /* Buttons — override Bootstrap's default blue with the brand palette */
 .btn {
-    border-radius: var(--radius-md);
+    --btn-lift: 0;
+    border-radius: var(--radius-sm);
     font-weight: 600;
-    padding: 0.6rem 1.1rem;
+    font-size: var(--fs-sm);
+    letter-spacing: -0.005em;
+    line-height: 1.35;
+    padding: 0.6rem 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    transform: translateY(var(--btn-lift));
     transition: transform var(--duration-micro) var(--ease-standard),
                 box-shadow var(--duration-micro) var(--ease-standard),
-                background-color var(--duration-micro) var(--ease-standard);
+                background-color var(--duration-micro) var(--ease-standard),
+                border-color var(--duration-micro) var(--ease-standard),
+                color var(--duration-micro) var(--ease-standard);
 }
-.btn:active { transform: scale(0.97); }
+.btn:active { --btn-lift: 0px; transform: scale(0.98); }
+.btn-lg { font-size: var(--fs-base); padding: 0.8rem 1.4rem; border-radius: var(--radius-md); }
+.btn-sm { font-size: var(--fs-xs); padding: 0.4rem 0.75rem; border-radius: var(--radius-xs); }
 
+/* The one saturated element on most screens, so it gets the full treatment:
+   a hairline of its own darker shade to stop the fill bleeding into the page,
+   and a tinted shadow rather than a grey one — a grey shadow under a warm
+   button is the tell that a palette was applied to a default theme. */
 .btn-primary {
     color: #fff;
     background-color: var(--color-primary);
     border-color: var(--color-primary);
+    box-shadow: 0 1px 2px rgba(158, 55, 20, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.13);
 }
-.btn-primary:hover, .btn-primary:focus {
+.btn-primary:hover {
+    background-color: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+    --btn-lift: -1px;
+    box-shadow: 0 4px 12px -2px rgba(158, 55, 20, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.13);
+}
+.btn-primary:focus {
     background-color: var(--color-primary-dark);
     border-color: var(--color-primary-dark);
 }
 .btn-primary:disabled {
-    background-color: var(--color-text-faint);
-    border-color: var(--color-text-faint);
+    background-color: var(--n-200);
+    border-color: var(--n-200);
+    color: var(--n-500);
+    box-shadow: none;
+    opacity: 1;
 }
 
-.btn-outline-secondary, .btn-outline-warning, .btn-outline-danger {
-    border-radius: var(--radius-md);
+/* Secondary. Bootstrap's outline variants render as a mid-grey ring on white,
+   which at this weight competes with the primary next to it; a filled neutral
+   with a hairline sits back where a secondary belongs. */
+.btn-outline-secondary {
+    background: var(--color-surface);
+    border-color: var(--color-border-strong);
+    color: var(--color-text);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-xs);
+}
+.btn-outline-secondary:hover {
+    background: var(--color-surface-alt);
+    border-color: var(--color-border-strong);
+    color: var(--color-text);
+    --btn-lift: -1px;
+    box-shadow: var(--shadow-sm);
+}
+.btn-outline-secondary:active { background: var(--color-surface-alt); color: var(--color-text); }
+
+.btn-outline-warning, .btn-outline-danger { border-radius: var(--radius-sm); }
+.btn-outline-danger { border-color: var(--color-border-strong); color: var(--color-danger); }
+.btn-outline-danger:hover { background: var(--color-danger); border-color: var(--color-danger); color: #fff; }
+
+.btn-link { font-weight: 600; text-decoration: none; }
+.btn-link:hover { text-decoration: underline; }
+
+/* Square icon-only "save" button that pairs with a primary CTA. Same height as
+   the button beside it, neutral until it's on. */
+.btn-save {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    padding: 0.6rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    color: var(--color-text-muted);
+    box-shadow: var(--shadow-xs);
+}
+.btn-save:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: var(--color-surface);
+}
+.btn-save.is-saved {
+    background: var(--color-primary-tint);
+    border-color: var(--color-primary-soft);
+    color: var(--color-primary);
 }
 
 .btn-sticky-cta {
@@ -206,23 +397,36 @@ textarea:focus-visible,
     align-items: center;
     gap: 0.3em;
     border-radius: var(--radius-full);
-    padding: 0.3em 0.7em;
-    font-size: var(--fs-xs);
-    font-weight: 600;
-    line-height: 1.4;
+    padding: 0.28em 0.65em;
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.005em;
+    line-height: 1.45;
+    white-space: nowrap;
 }
 .badge-urgent { background: var(--color-warning-tint); color: var(--color-warning); }
 .badge-verified { background: var(--color-accent-tint); color: var(--color-accent); }
-.badge-sold-out { background: var(--color-border); color: var(--color-text-muted); }
+.badge-sold-out { background: var(--n-200); color: var(--n-700); }
 .badge-success { background: var(--color-success-tint); color: var(--color-success); }
 /* Neutral, not brand-tinted — this badge appears on every card/status row,
    and the accent colour is reserved for primary actions/active states only. */
 .badge-info { background: var(--color-surface-alt); color: var(--color-text-muted); }
 
+/* Badges that sit on top of an image or a tinted thumb need their own ground;
+   a tint that reads on white disappears on beige. */
+.meal-card-badges .badge-pill {
+    background: rgba(26, 21, 18, 0.72);
+    color: #fff;
+    backdrop-filter: blur(8px) saturate(1.2);
+    -webkit-backdrop-filter: blur(8px) saturate(1.2);
+    box-shadow: 0 1px 3px rgba(26, 21, 18, 0.2);
+}
+.meal-card-badges .badge-urgent { background: rgba(192, 69, 28, 0.94); color: #fff; }
+
 /* Cards / surfaces */
 .surface-card {
     background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-hairline);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
 }
@@ -257,7 +461,7 @@ textarea:focus-visible,
 .meal-card {
     display: block;
     background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-hairline);
     border-radius: var(--radius-lg);
     overflow: hidden;
     text-decoration: none;
@@ -265,17 +469,24 @@ textarea:focus-visible,
     cursor: pointer;
     box-shadow: var(--shadow-sm);
     transition: transform var(--duration-standard) var(--ease-standard),
-                box-shadow var(--duration-standard) var(--ease-standard);
+                box-shadow var(--duration-standard) var(--ease-standard),
+                border-color var(--duration-standard) var(--ease-standard);
 }
 .meal-card:hover, .meal-card:focus-visible {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow: var(--shadow-md);
+    border-color: var(--color-border);
 }
-.meal-card:active { transform: translateY(-1px) scale(0.99); }
+.meal-card:active { transform: translateY(0) scale(0.995); }
 
+/* A fixed 168px thumb meant the image box changed proportion at every column
+   width the fluid grid produced — cards in the same row could not agree on a
+   shape. An aspect ratio holds one crop everywhere. */
 .meal-card-thumb {
-    height: 168px;
-    background: linear-gradient(135deg, var(--color-surface-alt), #EFE3D3);
+    aspect-ratio: 7 / 5;
+    background:
+        radial-gradient(120% 90% at 50% 12%, rgba(255, 255, 255, 0.9), transparent 60%),
+        linear-gradient(158deg, var(--n-100) 0%, #EFE6DA 55%, #EADFD0 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -286,25 +497,45 @@ textarea:focus-visible,
     width: 100%; height: 100%; object-fit: cover;
     transition: transform var(--duration-complex) var(--ease-standard);
 }
-.meal-card:hover .meal-card-thumb img { transform: scale(1.04); }
-.meal-card-emoji { font-size: 3.25rem; }
+.meal-card:hover .meal-card-thumb img { transform: scale(1.045); }
 
-.meal-card-body { padding: var(--space-4); }
-.meal-card-price { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; }
+/* The emoji is the product photo on a marketplace that has none yet, so it is
+   treated like one: sized off the card rather than fixed, given a soft cast
+   so it sits in the frame instead of floating flat on it, and lifted a touch
+   on hover in the same way a real photo would scale. */
+.meal-card-emoji {
+    font-size: clamp(2.75rem, 22cqw, 3.75rem);
+    line-height: 1;
+    filter: drop-shadow(0 6px 10px rgba(26, 21, 18, 0.16));
+    transition: transform var(--duration-complex) var(--ease-standard);
+}
+.meal-card:hover .meal-card-emoji { transform: scale(1.06) translateY(-2px); }
+.meal-card-thumb { container-type: inline-size; }
+
+.meal-card-body { padding: var(--space-4) var(--space-4) calc(var(--space-4) + 2px); }
+.meal-card-price {
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
 /* Two lines, then ellipsis — not one. The dish name is the reason someone stops
    scrolling; "Hyderabadi ..." is not a dish. Two lines fits every seeded title
    at the narrowest column the grid will ever produce, and min-height keeps the
    cards in a row aligned whether the title takes one line or two. */
 .meal-card-title {
     font-weight: 600;
-    margin-top: 2px;
+    font-size: var(--fs-base);
+    letter-spacing: -0.012em;
+    margin-top: 3px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    line-height: 1.3;
-    min-height: calc(2 * 1.3em);
+    line-height: 1.32;
+    min-height: calc(2 * 1.32em);
 }
 /* The separators are inside their spans rather than loose text nodes, so a wrap
    can't leave a "·" orphaned at the start of a line — which is what the old
@@ -326,14 +557,18 @@ textarea:focus-visible,
 .meal-card-fav {
     position: absolute; top: 10px; right: 10px;
     width: 34px; height: 34px; border-radius: 50%;
-    background: rgba(255,255,255,0.92);
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(10px) saturate(1.4);
+    -webkit-backdrop-filter: blur(10px) saturate(1.4);
     display: flex; align-items: center; justify-content: center;
     border: none; font-size: 1.05rem;
-    box-shadow: var(--shadow-sm);
-    transition: transform var(--duration-micro) var(--ease-spring);
+    box-shadow: 0 1px 3px rgba(26, 21, 18, 0.16);
+    transition: transform var(--duration-micro) var(--ease-spring),
+                background var(--duration-micro) var(--ease-standard);
 }
-.meal-card-fav:active { transform: scale(0.85); }
-.meal-card-fav .fav-icon { color: var(--color-text-muted); }
+.meal-card-fav:hover { background: #fff; transform: scale(1.06); }
+.meal-card-fav:active { transform: scale(0.88); }
+.meal-card-fav .fav-icon { color: var(--n-700); }
 .meal-card-fav .fav-icon-active { color: var(--color-primary); }
 
 .star-icon { color: var(--color-warning); vertical-align: -1px; }
@@ -341,38 +576,113 @@ textarea:focus-visible,
 
 .pickup-window svg { vertical-align: -3px; margin-right: 2px; color: var(--color-text-faint); }
 
-/* Section heading with rail */
+/* The page's opening statement: display title plus one line of orientation.
+   Held to a measure — a 40px serif question running 90 characters across a
+   wide monitor is a billboard, not a heading. */
+.page-intro { margin-bottom: var(--space-5); }
+.page-intro h1 {
+    font-size: var(--fs-2xl);
+    margin: 0 0 0.3rem;
+    max-width: 22ch;
+}
+.page-intro p {
+    color: var(--color-text-muted);
+    font-size: var(--fs-md);
+    line-height: 1.45;
+    margin: 0;
+    max-width: 56ch;
+}
+
+/* Section heading.
+   Inter, not Fraunces. Five serif headings down a scrolling page read as five
+   article titles — the eye gives each one the weight of a new document. The
+   page gets one display voice (the h1) and everything below it is UI. */
 .section-heading {
-    font-family: var(--font-display);
-    font-size: var(--fs-xl);
+    font-family: var(--font-body);
+    font-size: var(--fs-md);
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    color: var(--color-text);
     margin: var(--space-6) 0 var(--space-3);
 }
 .section-heading:first-child { margin-top: 0; }
 
-/* Filter chips */
+/* Filter chips.
+   The row scrolls, and a scrolling row whose last item is sheared off by the
+   viewport edge looks like a rendering bug rather than an invitation. The mask
+   fades the overflow out so the cut is deliberate — and it's only painted
+   while there is actually something to scroll to. */
 .chip-row {
     display: flex;
     gap: var(--space-2);
     overflow-x: auto;
-    padding-bottom: var(--space-1);
+    padding: 2px var(--space-5) var(--space-1) 2px;
+    margin: -2px 0 0 -2px;
     scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent 100%);
 }
 .chip-row::-webkit-scrollbar { display: none; }
 .chip {
     flex: 0 0 auto;
-    border: 1px solid var(--color-border-strong);
+    scroll-snap-align: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--color-border);
     background: var(--color-surface);
-    color: var(--color-text);
+    color: var(--color-text-muted);
     border-radius: var(--radius-full);
-    padding: 0.5rem 1rem;
+    padding: 0.45rem 0.9rem;
     font-size: var(--fs-sm);
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: -0.005em;
     white-space: nowrap;
     cursor: pointer;
-    transition: background var(--duration-micro) var(--ease-standard), color var(--duration-micro) var(--ease-standard), border-color var(--duration-micro) var(--ease-standard);
+    box-shadow: var(--shadow-xs);
+    transition: background var(--duration-micro) var(--ease-standard),
+                color var(--duration-micro) var(--ease-standard),
+                border-color var(--duration-micro) var(--ease-standard),
+                box-shadow var(--duration-micro) var(--ease-standard);
 }
-.chip:hover { border-color: var(--color-primary); }
-.chip.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.chip:hover { border-color: var(--color-border-strong); color: var(--color-text); background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.chip:active { transform: scale(0.97); }
+/* Ink-on-ink rather than brand-on-white: the selected filter is a statement of
+   fact about the list below it, not a call to action, so it takes the neutral
+   high-contrast treatment and leaves terracotta to the buttons. */
+.chip.active {
+    background: var(--n-900);
+    border-color: var(--n-900);
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+}
+.chip.active:hover { background: var(--n-800); border-color: var(--n-800); color: #fff; }
+
+/* Search field with a leading icon. */
+.search-field { position: relative; max-width: 460px; }
+.search-field > svg {
+    position: absolute;
+    left: 0.95rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-faint);
+    pointer-events: none;
+    transition: color var(--duration-micro) var(--ease-standard);
+}
+.search-field .form-control {
+    height: 46px;
+    padding-left: 2.65rem;
+    padding-right: 1rem;
+    font-size: var(--fs-base);
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    box-shadow: var(--shadow-xs);
+}
+.search-field .form-control::placeholder { color: var(--color-text-faint); }
+.search-field:focus-within > svg { color: var(--color-text-muted); }
 
 /* Quantity stepper */
 .qty-stepper {
@@ -417,16 +727,30 @@ textarea:focus-visible,
     text-align: center;
     padding: var(--space-10) var(--space-4);
     color: var(--color-text-muted);
+    max-width: 42ch;
+    margin-inline: auto;
 }
 .empty-state-icon {
-    width: 64px; height: 64px;
+    width: 60px; height: 60px;
     margin: 0 auto var(--space-4);
     border-radius: 50%;
     background: var(--color-surface-alt);
     color: var(--color-text-faint);
     display: flex; align-items: center; justify-content: center;
 }
-.empty-state h3 { font-size: var(--fs-lg); color: var(--color-text); margin-bottom: var(--space-2); }
+.empty-state h3 {
+    font-size: var(--fs-lg);
+    font-family: var(--font-body);
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    color: var(--color-text);
+    margin-bottom: var(--space-2);
+}
+/* The copy is often followed directly by a CTA (Messages, Favorites), so the
+   gap has to live on the paragraph — zeroing it entirely butted the button
+   against the sentence above it. */
+.empty-state p { font-size: var(--fs-sm); margin: 0 0 var(--space-4); }
+.empty-state p:last-child { margin-bottom: 0; }
 
 /* Accent colour is reserved for primary actions/active states (per top-tier
    marketplace research — Airbnb's 2025 system uses its accent sparingly, not
@@ -588,30 +912,34 @@ textarea:focus-visible,
 }
 .stat-tile {
     background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-hairline);
     border-radius: var(--radius-lg);
     padding: var(--space-4);
     box-shadow: var(--shadow-sm);
 }
-.stat-tile-muted { background: var(--color-surface-alt); border-color: transparent; box-shadow: none; }
+.stat-tile-muted { background: var(--n-50); border-color: transparent; box-shadow: none; }
+/* Sentence case, not uppercase. Six all-caps labels across the top of a
+   dashboard shout in unison and flatten the one number underneath each of
+   them; the label's job is to be read once and then ignored. */
 .stat-tile-label {
     display: flex; align-items: center; gap: 0.35rem;
     color: var(--color-text-muted);
     font-size: var(--fs-xs);
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
+    text-transform: none;
 }
 .stat-tile-label svg { color: var(--color-text-faint); }
 .stat-tile-value {
     font-family: var(--font-display);
     font-size: var(--fs-xl);
     font-weight: 600;
-    line-height: 1.15;
-    margin-top: var(--space-1);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    margin-top: var(--space-2);
     font-variant-numeric: tabular-nums;
 }
-.stat-tile-hint { color: var(--color-text-faint); font-size: var(--fs-xs); margin-top: 2px; }
+.stat-tile-hint { color: var(--color-text-faint); font-size: var(--fs-xs); margin-top: 3px; }
 
 /* =========================================================================
    SEGMENTED TABS
@@ -650,12 +978,17 @@ textarea:focus-visible,
     white-space: nowrap;
     transition: background var(--duration-micro) var(--ease-standard), color var(--duration-micro) var(--ease-standard);
 }
-.segmented button.active { background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-sm); }
+.segmented button:hover { color: var(--color-text); }
+.segmented button.active {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: var(--shadow-sm);
+}
 .segmented .seg-count {
     display: inline-block;
     margin-left: 0.35em;
     font-variant-numeric: tabular-nums;
-    color: var(--color-text-faint);
+    color: var(--color-text-muted);
     font-weight: 600;
 }
 .segmented button.active .seg-count { color: var(--color-primary); }
@@ -691,9 +1024,9 @@ textarea:focus-visible,
     flex-wrap: wrap;
     margin-bottom: var(--space-5);
 }
-.page-header h1 { font-size: var(--fs-xl); margin: 0; }
-.page-header .page-sub { color: var(--color-text-muted); font-size: var(--fs-sm); margin-top: 2px; }
-.page-header-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.page-header h1 { font-size: var(--fs-2xl); margin: 0; }
+.page-header .page-sub { color: var(--color-text-muted); font-size: var(--fs-sm); margin-top: 5px; }
+.page-header-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
 
 .back-link {
     display: inline-flex; align-items: center; gap: 0.35rem;
@@ -736,7 +1069,7 @@ textarea:focus-visible,
 .review-card { padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); }
 .review-card:last-child { border-bottom: none; }
 .review-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.review-dish { color: var(--color-text-faint); font-size: var(--fs-xs); }
+.review-dish { color: var(--color-text-muted); font-size: var(--fs-xs); }
 .review-body { margin: var(--space-2) 0 0; line-height: 1.55; }
 .review-subscores {
     display: flex; flex-wrap: wrap; gap: var(--space-3);
@@ -754,23 +1087,40 @@ textarea:focus-visible,
 .kitchen-row {
     display: block;
     background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-hairline);
     border-radius: var(--radius-lg);
     padding: var(--space-4);
     text-decoration: none;
     color: inherit;
     box-shadow: var(--shadow-sm);
-    transition: box-shadow var(--duration-standard) var(--ease-standard), transform var(--duration-standard) var(--ease-standard);
+    transition: box-shadow var(--duration-standard) var(--ease-standard),
+                transform var(--duration-standard) var(--ease-standard),
+                border-color var(--duration-standard) var(--ease-standard);
 }
-.kitchen-row:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); color: inherit; }
+.kitchen-row:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+    border-color: var(--color-border);
+    color: inherit;
+}
 .kitchen-row-head { display: flex; align-items: center; gap: var(--space-3); }
-.kitchen-emoji { font-size: 1.9rem; line-height: 1; flex: 0 0 auto; }
-.kitchen-title { font-weight: 700; }
+/* Sized and framed rather than dropped in as loose text — at 1.9rem naked it
+   was the only element on the row with no alignment box of its own. */
+.kitchen-emoji {
+    font-size: 1.4rem;
+    line-height: 1;
+    flex: 0 0 auto;
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-sm);
+}
+.kitchen-title { font-weight: 650; letter-spacing: -0.012em; }
 .kitchen-meta { color: var(--color-text-muted); font-size: var(--fs-sm); }
 .kitchen-figure { text-align: right; flex: 0 0 auto; }
 .kitchen-figure-main { font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.progress-track { height: 6px; background: var(--color-surface-alt); border-radius: var(--radius-full); overflow: hidden; }
+.progress-track { height: 6px; background: var(--n-150); border-radius: var(--radius-full); overflow: hidden; }
 .progress-fill {
     height: 100%;
     background: var(--color-primary);
@@ -917,14 +1267,33 @@ textarea:focus-visible,
    FORMS
    ========================================================================= */
 .form-section { margin-bottom: var(--space-6); }
+/* Inter, for the same reason .section-heading is: these are the rungs of one
+   form, not the titles of three documents. */
 .form-section-title {
-    font-family: var(--font-display);
-    font-size: var(--fs-lg);
+    font-family: var(--font-body);
+    font-size: var(--fs-md);
+    font-weight: 650;
+    letter-spacing: -0.015em;
     margin-bottom: var(--space-1);
 }
 .form-section-hint { color: var(--color-text-muted); font-size: var(--fs-sm); margin-bottom: var(--space-4); }
-.form-label { font-weight: 600; font-size: var(--fs-sm); margin-bottom: var(--space-1); }
-.form-control, .form-select { border-radius: var(--radius-md); border-color: var(--color-border-strong); padding: 0.6rem 0.8rem; }
+.form-label { font-weight: 600; font-size: var(--fs-sm); margin-bottom: var(--space-1); color: var(--color-text); }
+.form-control, .form-select {
+    border-radius: var(--radius-sm);
+    border-color: var(--color-border-strong);
+    padding: 0.6rem 0.8rem;
+    font-size: var(--fs-base);
+    color: var(--color-text);
+    background-color: var(--color-surface);
+    transition: border-color var(--duration-micro) var(--ease-standard),
+                box-shadow var(--duration-micro) var(--ease-standard);
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--color-border-strong);
+    background-color: var(--color-surface);
+    color: var(--color-text);
+}
+.form-control::placeholder { color: var(--color-text-faint); }
 .field-hint { color: var(--color-text-faint); font-size: var(--fs-xs); margin-top: var(--space-1); }
 
 .step-header { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
@@ -973,6 +1342,24 @@ textarea:focus-visible,
 .nowrap { white-space: nowrap; }
 .money { font-variant-numeric: tabular-nums; }
 .min-width-0 { min-width: 0; }
+
+/* Micro-label above a value or a control. All-caps needs to be small and
+   tracked out to stay legible; at Bootstrap's .small (14px) it was reading as
+   a shouted heading rather than a field name. */
+.micro-label {
+    display: block;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--color-text-faint);
+    margin-bottom: var(--space-1);
+}
+
+/* Inline icon that sits on the text baseline rather than becoming a flex
+   sibling — a flex row centres the icon against a two-line block, which parks
+   it in the middle of the left margin instead of beside the first word. */
+.inline-icon { vertical-align: -2px; margin-right: 0.15em; }
 
 /* Small "something's ready" marker where a count would be noise */
 .nav-dot {
@@ -1149,7 +1536,7 @@ textarea:focus-visible,
 .perspective-head svg { color: var(--color-text-faint); }
 .perspective-body { font-size: var(--fs-sm); color: var(--color-text-muted); margin: var(--space-2) 0 var(--space-3); line-height: 1.5; }
 .perspective-avatar { font-size: 1.05rem; margin-right: 0.35rem; }
-.perspective-note { font-size: var(--fs-xs); color: var(--color-text-faint); margin-top: var(--space-2); }
+.perspective-note { font-size: var(--fs-xs); color: var(--color-text-muted); margin-top: var(--space-2); }
 
 /* =========================================================================
    HOW IT WORKS — the two journeys side by side
@@ -1182,18 +1569,42 @@ textarea:focus-visible,
 .money-back { background: var(--color-warning-tint); color: var(--color-warning); }
 .money-out { background: var(--color-primary-tint); color: var(--color-primary-dark); }
 
-/* "How it works" strip on Discover */
-.hiw-strip { display: flex; gap: var(--space-4); flex-wrap: wrap; }
-.hiw-chip { display: flex; gap: var(--space-2); align-items: flex-start; flex: 1 1 200px; }
+/* "How it works" strip on Discover.
+   An explainer that outweighs the thing it explains is an advertisement for
+   itself. This one is a quiet inset panel above the listings, not a white card
+   with the same lift as the meal cards below it — it should read as part of
+   the page's background furniture until you need it. */
+.hiw-strip { display: flex; gap: var(--space-5); flex-wrap: wrap; }
+.hiw-chip { display: flex; gap: var(--space-2); align-items: flex-start; flex: 1 1 190px; }
 .hiw-chip-num {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: var(--color-primary); color: #fff;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--color-primary-tint); color: var(--color-primary-dark);
     display: flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 700; flex: 0 0 auto;
+    margin-top: 1px;
 }
 .hiw-chip-text { font-size: var(--fs-sm); line-height: 1.4; }
-.hiw-chip-text strong { display: block; }
+.hiw-chip-text strong { display: block; font-weight: 650; letter-spacing: -0.01em; }
 .hiw-chip-text span { color: var(--color-text-muted); font-size: var(--fs-xs); }
+
+/* The Discover explainer's own shell. Overrides .surface-card's white-and-
+   lifted treatment where the markup reuses it. */
+.hiw-panel {
+    background: var(--color-surface-alt);
+    border: none;
+    box-shadow: none;
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+}
+.hiw-panel a, .hiw-panel .btn-link { color: var(--color-primary-dark); }
+
+.hiw-panel-head {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
 
 /* =========================================================================
    SIGN IN
@@ -1213,9 +1624,9 @@ textarea:focus-visible,
     width: 100%;
     max-width: 420px;
     background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
     padding: var(--space-6);
 }
 
@@ -1276,6 +1687,11 @@ textarea:focus-visible,
     color: #1F1F1F;
 }
 
+/* A ring, not a disc: the letter used to sit white directly on the conic
+   gradient, which over the yellow quarter is about 1.7:1 — the mark was
+   legible only where the wheel happened to be red or blue. Punching a white
+   core out of the gradient puts the G on white and turns the colour into a
+   ring around it, which is also closer to the real Google mark. */
 .auth-google-mark {
     display: inline-flex;
     align-items: center;
@@ -1283,11 +1699,14 @@ textarea:focus-visible,
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: conic-gradient(#EA4335 0 25%, #FBBC05 0 50%, #34A853 0 75%, #4285F4 0);
-    color: #fff;
+    background:
+        radial-gradient(circle at 50% 50%, #fff 0 46%, transparent 47%),
+        conic-gradient(#EA4335 0 25%, #FBBC05 0 50%, #34A853 0 75%, #4285F4 0);
+    color: #1F1F1F;
     font-family: var(--font-body);
     font-weight: 700;
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
+    line-height: 1;
 }
 
 .auth-fineprint {
@@ -1364,31 +1783,37 @@ textarea:focus-visible,
 .auth-demo-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .auth-demo-item { margin: 0; }
 
+/* Ten filled tiles turned the aside into the loudest block on the page — more
+   visual weight than the real sign-in button above it. Outlined and lighter,
+   the list reads as the footnote it is. */
 .auth-demo-btn {
     display: flex;
     align-items: center;
     gap: 0.55rem;
     width: 100%;
-    min-height: 48px;
-    padding: 0.5rem 0.65rem;
-    background: var(--color-surface-alt);
-    border: 1px solid transparent;
+    min-height: 46px;
+    padding: 0.45rem 0.6rem;
+    background: transparent;
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     text-align: left;
     cursor: pointer;
     transition: border-color var(--duration-micro) var(--ease-standard),
-                background var(--duration-micro) var(--ease-standard);
+                background var(--duration-micro) var(--ease-standard),
+                transform var(--duration-micro) var(--ease-standard);
 }
 
 .auth-demo-btn:hover {
-    background: #fff;
-    border-color: var(--color-primary);
+    background: var(--color-surface-alt);
+    border-color: var(--color-border-strong);
 }
+
+.auth-demo-btn:active { transform: scale(0.98); }
 
 .auth-demo-avatar { font-size: 1.25rem; line-height: 1; }
 
@@ -1415,8 +1840,15 @@ textarea:focus-visible,
     color: var(--color-text-muted);
 }
 
-/* The sign-in shell: no sidebar, so the card centres on the whole viewport. */
+/* The sign-in shell: no sidebar, so the card centres on the whole viewport.
+   Two very wide, very faint washes behind the card — one warm from the brand,
+   one cool from the accent — so the one screen with nothing else on it isn't a
+   flat field of beige. Both are far below the contrast threshold for text;
+   they exist to give the card something to sit *on*. */
 .auth-shell {
     min-height: 100vh;
-    background: var(--color-bg);
+    background:
+        radial-gradient(70% 55% at 15% 0%, rgba(192, 69, 28, 0.055), transparent 70%),
+        radial-gradient(60% 50% at 90% 100%, rgba(70, 101, 74, 0.05), transparent 70%),
+        var(--color-bg);
 }

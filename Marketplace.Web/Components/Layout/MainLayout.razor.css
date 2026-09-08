@@ -11,8 +11,17 @@ main {
     min-width: 0;
 }
 
+/* The sidebar is chrome, and chrome should recede.
+
+   It used to be a dark brown gradient — a 250px column of the highest-contrast
+   surface in the app, permanently in the corner of the eye, competing with the
+   food it exists to help you find. On a marketplace the product photography is
+   the interface; everything else is a frame around it. So: the same warm white
+   as the page, one hairline to divide it, and the navigation carried by weight
+   and spacing instead of by a slab of colour. */
 .sidebar {
-    background-image: linear-gradient(180deg, #2E241C 0%, #4B3524 100%);
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
 }
 
 .top-row {
@@ -89,8 +98,8 @@ main {
        screen's content column at the exact width where it can least afford it,
        and the same 56px looks mean at 1600px. */
     .top-row, article {
-        padding-left: clamp(1rem, 0.3rem + 1.75vw, 2rem) !important;
-        padding-right: clamp(1rem, 0.48rem + 1.3vw, 1.5rem) !important;
+        padding-left: clamp(1.25rem, 0.4rem + 2.1vw, 2.5rem) !important;
+        padding-right: clamp(1.25rem, 0.4rem + 2.1vw, 2.5rem) !important;
     }
 }
 
