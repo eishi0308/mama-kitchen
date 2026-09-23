@@ -9,14 +9,14 @@
    buyer believes a stranger's kitchen is worth eating from — and until now
    there was nowhere to go to find out. *@
 
-<PageTitle>@(_profile?.Cook.Name ?? "Cook") — Batch</PageTitle>
+<PageTitle>@(_profile?.Cook.Name ?? "Cook") — Mama-kitchen</PageTitle>
 
 @if (_loaded && _profile is null)
 {
     <div class="empty-state">
         <div class="empty-state-icon"><Icon Name="magnifying-glass" Size="26" /></div>
         <h3>Cook not found</h3>
-        <p>This person isn't selling on Batch.</p>
+        <p>This person isn't selling on Mama-kitchen.</p>
         <a class="btn btn-primary" href="/">Browse food nearby</a>
     </div>
 }
@@ -200,7 +200,7 @@ else
         <div class="callout callout-info mb-5">
             <Icon Name="star" Size="18" />
             <div>
-                No reviews yet. @p.Cook.Name is new to Batch —
+                No reviews yet. @p.Cook.Name is new to Mama-kitchen —
                 @(p.Profile.VerificationStatus == VerificationStatus.Verified
                     ? "their kitchen is verified, but nobody's rated a meal yet."
                     : "their verification is still pending.")

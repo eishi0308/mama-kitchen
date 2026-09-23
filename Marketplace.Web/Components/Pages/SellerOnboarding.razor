@@ -5,7 +5,7 @@
 @inject NavigationManager Nav
 @implements IDisposable
 
-<PageTitle>Start selling — Batch</PageTitle>
+<PageTitle>Start selling — Mama-kitchen</PageTitle>
 
 @if (CurrentUser.IsSeller)
 {
@@ -13,7 +13,7 @@
     <div class="empty-state">
         <div class="empty-state-icon"><Icon Name="storefront" Size="26" /></div>
         <h3>You already have a kitchen</h3>
-        <p>@CurrentUser.CurrentUser.Name is set up to sell on Batch.</p>
+        <p>@CurrentUser.CurrentUser.Name is set up to sell on Mama-kitchen.</p>
         <a class="btn btn-primary" href="/kitchen">Go to your kitchen</a>
     </div>
 }
@@ -31,7 +31,7 @@ else
 
         <div class="stat-grid mb-5">
             <StatTile Label="You keep" Value="@($"{100 - (int)(Marketplace.Web.Services.SellerService.PlatformFeeRate * 100)}%")"
-                      Hint="Batch takes 10% per collected order" IconName="wallet" Muted="true" />
+                      Hint="Mama-kitchen takes 10% per collected order" IconName="wallet" Muted="true" />
             <StatTile Label="You cook" Value="To order" Hint="Only what's already reserved" IconName="flame" Muted="true" />
             <StatTile Label="You deliver" Value="Nothing" Hint="Pickup only, from your address" IconName="map-pin" Muted="true" />
         </div>
@@ -111,7 +111,7 @@ else
                 <Icon Name="shield-check" Size="18" />
                 <div>
                     <strong>Before you sell food in Australia:</strong> whether you need to register as a food business
-                    depends on your council, your state, and what you're cooking. Batch tracks where you are in that
+                    depends on your council, your state, and what you're cooking. Mama-kitchen tracks where you are in that
                     process — it can't tell you whether you're allowed to sell, and it doesn't pretend to.
                     Your kitchen starts as <strong>Pending</strong> and buyers see that honestly.
                 </div>

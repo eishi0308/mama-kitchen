@@ -10,7 +10,7 @@
 @* /my-food-drops is kept as an alias so links and bookmarks from the previous
    build still land somewhere real. *@
 
-<PageTitle>Your kitchen — Batch</PageTitle>
+<PageTitle>Your kitchen — Mama-kitchen</PageTitle>
 
 @if (!CurrentUser.IsSeller)
 {
@@ -82,7 +82,7 @@ else
         <StatTile Label="Cooking today" Value="@_summary.Today.Sum(t => t.PortionsToCook).ToString()" IconName="flame"
                   Hint="@($"across {_summary.Today.Count} {(_summary.Today.Count == 1 ? "batch" : "batches")}")" />
         <StatTile Label="Balance" Value="@($"${_summary.PendingPayout:0.00}")" IconName="wallet"
-                  Hint="After the 10% Batch fee" />
+                  Hint="After the 10% Mama-kitchen fee" />
         <StatTile Label="Rating" Value="@(profile.RatingAverage?.ToString("0.0") ?? "—")" IconName="star"
                   Hint="@(profile.RatingAverage is null ? "No reviews yet" : $"{profile.CompletedOrders} orders collected")" />
     </div>

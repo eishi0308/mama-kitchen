@@ -8,7 +8,7 @@
 @inject NavigationManager Nav
 @implements IDisposable
 
-<PageTitle>@(IsEdit ? "Edit food drop" : "Cook & sell") — Batch</PageTitle>
+<PageTitle>@(IsEdit ? "Edit food drop" : "Cook & sell") — Mama-kitchen</PageTitle>
 
 @if (!CurrentUser.IsSeller)
 {
@@ -121,7 +121,7 @@ else
                 <div class="form-section">
                     <h2 class="form-section-title">Price and portions</h2>
                     <p class="form-section-hint">
-                        Batch takes 10% of each collected order. You keep
+                        Mama-kitchen takes 10% of each collected order. You keep
                         <strong class="money">$@NetPerPortion().ToString("0.00")</strong> per portion.
                     </p>
 

@@ -1,4 +1,4 @@
-# Batch (.NET 9 / Blazor Server / EF Core / SQLite)
+# Mama-kitchen (.NET 9 / Blazor Server / EF Core / SQLite)
 
 A hyperlocal homemade-food marketplace for Australia: nearby home cooks post scheduled
 "food drops" (dish, price, portions, order deadline, pickup window), buyers reserve and

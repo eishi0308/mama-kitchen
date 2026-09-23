@@ -4,7 +4,7 @@
 @inject CurrentUserService CurrentUser
 @implements IDisposable
 
-<PageTitle>Cook profile — Batch</PageTitle>
+<PageTitle>Cook profile — Mama-kitchen</PageTitle>
 
 @if (!CurrentUser.IsSeller)
 {
@@ -70,7 +70,7 @@ else
             <div class="surface-card p-4 mb-4" id="payout">
                 <h2 class="form-section-title" style="font-size:var(--fs-base);">Getting paid</h2>
                 <p class="form-section-hint">
-                    Where Batch sends your earnings. You can post and sell without this — you just can't
+                    Where Mama-kitchen sends your earnings. You can post and sell without this — you just can't
                     cash out until it's set.
                 </p>
 
@@ -89,7 +89,7 @@ else
                         <button class="btn btn-sm btn-outline-secondary" @onclick="() => _editingPayout = true">Change</button>
                     </div>
                     <p class="field-hint mt-3 mb-0">
-                        Only the last four digits are stored. Batch never keeps your full account number.
+                        Only the last four digits are stored. Mama-kitchen never keeps your full account number.
                     </p>
                 }
                 else
@@ -230,7 +230,7 @@ else
                 </div>
                 <p class="text-muted small mb-0">
                     Whether you need to register as a food business depends on your council, your state and what
-                    you cook. Batch tracks where you are in that process — it can't tell you whether you're
+                    you cook. Mama-kitchen tracks where you are in that process — it can't tell you whether you're
                     allowed to sell, and it doesn't pretend to.
                 </p>
 

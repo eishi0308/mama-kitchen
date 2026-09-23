@@ -104,7 +104,7 @@ public static class AuthEndpoints
     }
 
     /// Called by the Google handler once it has a validated ticket. This is
-    /// where a Google identity becomes a Batch account.
+    /// where a Google identity becomes a Mama-kitchen account.
     public static async Task OnGoogleTicketReceived(TicketReceivedContext context)
     {
         var accounts = context.HttpContext.RequestServices.GetRequiredService<UserAccountService>();

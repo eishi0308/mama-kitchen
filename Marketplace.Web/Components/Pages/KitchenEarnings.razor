@@ -4,7 +4,7 @@
 @inject CurrentUserService CurrentUser
 @implements IDisposable
 
-<PageTitle>Earnings — Batch</PageTitle>
+<PageTitle>Earnings — Mama-kitchen</PageTitle>
 
 @if (!CurrentUser.IsSeller)
 {
@@ -112,7 +112,7 @@ else
                   Hint="@($"{_earnings.CompletedOrders} orders all time")" />
         <StatTile Label="Still to collect" Value="@($"${_earnings.InFlight:0.00}")" IconName="clock" Muted="true"
                   Hint="Paid for, not handed over" />
-        <StatTile Label="Batch fees" Value="@($"${_earnings.PlatformFees:0.00}")" IconName="tag" Muted="true"
+        <StatTile Label="Mama-kitchen fees" Value="@($"${_earnings.PlatformFees:0.00}")" IconName="tag" Muted="true"
                   Hint="10% of collected orders" />
     </div>
 
@@ -123,7 +123,7 @@ else
             <strong class="money">$@_earnings.LifetimeGross.ToString("0.00")</strong>
         </div>
         <div class="d-flex justify-content-between py-2" style="border-bottom:1px solid var(--color-border);">
-            <span class="text-muted">Batch fee (10%)</span>
+            <span class="text-muted">Mama-kitchen fee (10%)</span>
             <span class="money">−$@_earnings.PlatformFees.ToString("0.00")</span>
         </div>
         <div class="d-flex justify-content-between py-2" style="font-size:var(--fs-md); font-weight:700;">
